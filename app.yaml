@@ -1,0 +1,33 @@
+application: khan-snippets
+version: 1
+runtime: python
+api_version: 1
+default_expiration: "365d"
+
+handlers:
+- url: /stylesheets
+  static_dir: stylesheets
+
+- url: /javascript
+  static_dir: javascript
+
+- url: /favicon.ico
+  static_files: images/favicon.ico
+  mime_type: image/x-icon
+  upload: images/favicon.ico
+
+- url: /images/favicon.ico
+  static_files: images/favicon.ico
+  mime_type: image/x-icon
+  upload: images/favicon.ico
+
+- url: /remote_api
+  script: $PYTHON_LIB/google/appengine/ext/remote_api/handler.py
+  login: admin
+
+- url: /admin/.*
+  script: snippets.py
+  login: admin
+
+- url: .*
+  script: snippets.py

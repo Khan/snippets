@@ -1,0 +1,36 @@
+<html>
+<head>
+  <title>Snippets for {{username}}</title>
+</head>
+
+<body>
+
+{% if message %}
+<font color="red" size="+2"><b>{{message}}</b></font>
+{% endif %}
+
+<h2>Snippets for {{username}}</h2>
+
+{% for snippet in snippets %}
+  <form action="/update_snippet" method="get">
+
+  <h3>Snippets for the week of {{snippet.week|date:"F j, Y"}}
+      &nbsp; <input type="submit" value="Update">
+  </h3>
+
+  <input type="checkbox" name="private" value="True"
+         {% if snippet.private %}checked{% endif %}>
+  Snippet is private (only viewable by people in the same domain as you)
+  <br>
+
+  <input type="hidden" name="week" value="{{snippet.week|date:"m-d-Y"}}">
+
+  {% if snippet.private %}<font color="#cccccc">{% endif %}
+  <textarea name="snippet" rows="6" cols="80">{{snippet.text|escape}}</textarea>
+  {% if snippet.private %}</font>{% endif %}
+
+  </form>
+{% endfor %}
+
+</body>
+</html>

@@ -1,0 +1,14 @@
+This directory holds code related to weekly snippets at the Khan Academy.
+
+Here is the functionality involved:
+
+1) Reading snippets that are mailed to a particular email account,
+extracting the snippet-content and sender from the email, and storing
+them in a database.
+
+2) Once a week, collecting the week's snippets from the database and
+sending them to interested users.
+
+3) TODO(csilvers): A way of registering interest in snippets (perhaps
+only from certain people?)  For now, all snippets are always sent to
+'all'.

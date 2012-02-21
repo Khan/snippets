@@ -1,0 +1,11 @@
+cron:
+
+- description: snippets reminder
+  url: /admin/send_reminder_email
+  schedule: every monday 10:00
+  timezone: US/Pacific
+
+- description: snippets reminder
+  url: /admin/send_view_email
+  schedule: every monday 19:00
+  timezone: US/Pacific
