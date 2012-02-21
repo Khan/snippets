@@ -1,0 +1,51 @@
+{% autoescape on %}
+<html>
+<head>
+  <title>Snippets for the week of {{view_week|date:"F j, Y"}}</title>
+</head>
+
+<body>
+
+<p><font size="-1"><div align="right">
+<a href="/settings?u={{username}}">user settings</a> |
+<a href="{{logout_url}}">logout</a>
+</div></font></p>
+
+{% if message %}
+<font color="red" size="+2"><b>{{message}}</b></font>
+{% endif %}
+
+<form action="/" method="get">
+<i>See snippets for <input type="textbox" name="u" value="{{username}}"></i>
+<input type="submit" value="View">
+</form>
+
+<form action="/weekly" method="get">
+<i>See snippets for the week of
+<input type="textbox" name="week" value="{{view_week|date:"m-d-Y"}}"></i>
+(format: MM-DD-YYYY)
+<input type="submit" value="View">
+</form>
+
+<hr>
+
+<h2>
+<a href="/weekly?week={{prev_week|date:"m-d-Y"}}">&laquo;</a>
+Snippets for the week of {{view_week|date:"F j, Y"}}
+<a href="/weekly?week={{next_week|date:"m-d-Y"}}">&raquo;</a>
+</h2>
+
+{% for category_and_snippets in categories_and_snippets %}
+
+  <h3> {{category_and_snippets.0}} </h3>
+
+    {% for snippet in category_and_snippets.1 %}
+      <p>{{snippet.email}}:</p>
+      <blockquote><pre>{{snippet.text}}</pre></blockquote>
+    {% endfor %}
+
+{% endfor %}
+
+</body>
+</html>
+{% endautoescape %}

@@ -1,5 +1,6 @@
 import datetime
 import os
+import urllib
 
 # Before importing anything from appengine, set the django version we want.
 from google.appengine.dist import use_library
@@ -23,6 +24,10 @@ everyone's snippets in them.
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 
 
+# TODO(csilvers): allow mocking in a different day
+_TODAY = datetime.datetime.now().date() + datetime.timedelta(100) #!!
+
+
 port = os.environ['SERVER_PORT']
 if port and port != '80':
     HOST_NAME = '%s:%s' % (os.environ['SERVER_NAME'], port)
@@ -31,24 +36,27 @@ else:
 
 
 # Note: I use email address rather than a UserProperty to uniquely
-# identify a user.  As per,
+# identify a user.  As per
 # http://code.google.com/appengine/docs/python/users/userobjects.html
 # a UserProperty is an email+unique id, so if a person changes their
-# email the UserProperty doesn't match anymore anyway.  And non-google
-# users can't have a unique id, so if I want to expand the snippet
-# server later that won't scale.  But email seems like a fine unique
-# identifier.  If someone changes email address and wants to take their
-# snippets with them, we can add functionality to support that later.
+# email the UserProperty also changes; it's not a persistent
+# identifier across email changes the way the unique-id alone is.  But
+# non-google users can't have a unique id, so if I want to expand the
+# snippet server later that won't scale.  So might as well use email
+# as our unique identifier.  If someone changes email address and
+# wants to take their snippets with them, we can add functionality to
+# support that later.
 
 class User(db.Model):
     """User preferences."""
-    email = db.StringProperty(required=True)  # The key to this record
-    category = db.StringProperty(default='')  # used to group snippets together
-    wants_email_for = db.TextProperty(default='all')    # comma-separated list
+    email = db.StringProperty(required=True)           # The key to this record
+    category = db.StringProperty(default='(unknown)')  # used to group snippets
+    wants_to_view = db.TextProperty(default='all')     # comma-separated list
 
 
 class Snippet(db.Model):
     """Every snippet is identified by the monday of the week it goes with."""
+    # email should come first, so default sort sorts snippets by email
     email = db.StringProperty(required=True) # with week, the key to this record
     week = db.DateProperty(required=True)    # the monday of the week
     text = db.TextProperty(default='(No snippet for this week)')
@@ -64,14 +72,71 @@ def _login_page(request, response):
                        % users.create_login_url(request.uri))
 
 
-def _this_monday(today):
-    """Return a datetime.date object representing the monday for new snippets."""
+def _get_user(email):
+    """Returns the user object with the given email, or None if not found."""
+    q = User.all()
+    q.filter('email = ', email)
+    results = q.fetch(1)
+    if results:
+        return results[0]
+    return None
+
+
+def _get_or_create_user(email):
+    """Returns the user object with the given email, creating if if needed."""
+    user = _get_user(email)
+    if user:
+        pass
+    elif not _logged_in_user_has_permission_for(email):
+        raise IndexError('User "%s" not found; did you specify'
+                         ' the full email address?'% email)
+    else:
+        user = User(email=email)
+        db.put(user)
+    return user
+
+
+def _newsnippet_monday(today):
+    """Return a datetime.date object: the monday for new snippets."""
     today_weekday = today.weekday()   # monday == 0, sunday == 6
     if today_weekday <= 2:            # wed or before
         end_monday = today - datetime.timedelta(today_weekday + 7)
     else:
         end_monday = today - datetime.timedelta(today_weekday)        
     return end_monday
+
+
+def _existingsnippet_monday(today):
+    """Return a datetime.date object: the monday for last-submitted snippets."""
+    return _newsnippet_monday(today) - datetime.timedelta(7)
+
+
+def _logged_in_user_has_permission_for(email):
+    """Return True if the current logged-in appengine user can edit this user."""
+    return (email == users.get_current_user().email() or
+            users.is_current_user_admin())
+
+
+def _can_view_private_snippets(my_email, snippet_email):
+    """Returns true if I have permission to view other's private snippet.
+
+    I have permission to view if I am in the same domain as the person
+    who wrote the snippet (domain is everything following the @ in the
+    email).
+
+    Arguments:
+      my_email: the email address of the currently logged in user
+      snippet_email: the email address of the snippet we're trying to view.
+
+    Returns:
+      True if my_email has permission to view snippet_email's private
+      emails, or False else.
+    """
+    my_at = my_email.rfind('@')
+    snippet_at = snippet_email.rfind('@')
+    if my_at == -1 or snippet_at == -1:
+        return False    # be safe
+    return my_email[my_at:] == snippet_email[snippet_at:]
 
 
 def fill_in_missing_snippets(existing_snippets, user_email, today):
@@ -96,7 +161,7 @@ def fill_in_missing_snippets(existing_snippets, user_email, today):
     Returns:
       A new list of Snippet objects, without any holes.
     """
-    end_monday = _this_monday(today)
+    end_monday = _newsnippet_monday(today)
     if not existing_snippets:         # no snippets at all?  Just do this week
         return [Snippet(email=user_email, week=end_monday)]
 
@@ -118,35 +183,90 @@ def fill_in_missing_snippets(existing_snippets, user_email, today):
     return all_snippets
 
 
-class UserPage(webapp.RequestHandler):
+class SummaryPage(webapp.RequestHandler):
+    """Show all the snippets for a single week."""
+    
     def get(self):
         if not users.get_current_user():
             return _login_page(self.request, self.response)
 
-        user_q = User.all()
-        # TODO(csilvers): allow other users
-        user_q.filter('email = ', users.get_current_user().email())
-        results = user_q.fetch(1)
-        if results:
-            user = results[0]
+        week_string = self.request.get('week')
+        if week_string:
+            week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
         else:
-            user = User(email=users.get_current_user().email())
-            db.put(user)
+            week = _existingsnippet_monday(_TODAY)
+
+        snippets_q = Snippet.all()
+        snippets_q.filter('week = ', week)
+        snippets = snippets_q.fetch(1000)   # good for many users...
+        # TODO(csilvers): filter based on wants_to_view
+
+        # Get all the user records so we can categorize snippets.
+        user_q = User.all()
+        results = user_q.fetch(1000)
+        email_to_category = {}
+        for result in results:
+            email_to_category[result.email] = result.category
+
+        # Collect the snippets by category.
+        snippets_by_category = {}
+        for snippet in snippets:
+            # Ignore this snippet if we don't have permission to view it.
+            if (not snippet.private or
+                _can_view_private_snippets(users.get_current_user().email(),
+                                           snippet.email)):
+                category = email_to_category.get(snippet.email, '(unknown)')
+                snippets_by_category.setdefault(category, []).append(snippet)
+
+        # Now get a sorted list, categories in alphabetical order and
+        # each snippet-author within the category in alphabetical
+        # order.  The data structure is ((category, (snippet, ...)), ...)
+        categories_and_snippets = []
+        for category in snippets_by_category:
+            snippets = snippets_by_category[category]
+            # This sorts by email, which is the 1st field in the Snippet class.
+            snippets.sort()
+            categories_and_snippets.append((category, snippets))
+        categories_and_snippets.sort()
+
+        template_values = {
+            'logout_url': users.create_logout_url('/'),
+            'message': self.request.get('msg'),
+            # Used only to switch to 'username' mode and to modify settings.
+            'username': users.get_current_user().email(),
+            'prev_week': week - datetime.timedelta(7),
+            'view_week': week,
+            'next_week': week + datetime.timedelta(7),
+            'categories_and_snippets': categories_and_snippets,
+            }
+        path = os.path.join(os.path.dirname(__file__), 'weekly_snippets.html')
+        self.response.out.write(template.render(path, template_values))    
+
+
+class UserPage(webapp.RequestHandler):
+    """Show all the snippets for a single user."""
+
+    def get(self):
+        if not users.get_current_user():
+            return _login_page(self.request, self.response)
+
+        user_email = self.request.get('u', users.get_current_user().email())
+        user = _get_or_create_user(user_email)
 
         snippets_q = Snippet.all()
         snippets_q.filter('email = ', user.email)
         snippets_q.order('week')            # note this puts oldest snippet first
         snippets = snippets_q.fetch(1000)   # good for many years...
 
-        # TODO(csilvers): allow mocking in a different day
-        _TODAY = datetime.datetime.now().date() + datetime.timedelta(100) #!!
         snippets = fill_in_missing_snippets(snippets, user.email, _TODAY)
         snippets.reverse()                  # get to newest snippet first
 
         template_values = {
+            'logout_url': users.create_logout_url('/'),
             'message': self.request.get('msg'),
             'username': user.email,
-            'editable': user.email == users.get_current_user().email(),
+            'view_week': _existingsnippet_monday(_TODAY),
+            'editable': _logged_in_user_has_permission_for(user.email),
             'snippets': snippets,
             }
         path = os.path.join(os.path.dirname(__file__), 'user_snippets.html')
@@ -165,9 +285,7 @@ class UpdateSnippet(webapp.RequestHandler):
         if not users.get_current_user():
             return _login_page(self.request, self.response)
 
-        # TODO(csilvers): allow other users
-        user = users.get_current_user()
-        email = user.email()
+        email = self.request.get('u', users.get_current_user().email())
 
         week_string = self.request.get('week')
         week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
@@ -188,12 +306,70 @@ class UpdateSnippet(webapp.RequestHandler):
         else:                        # add the snippet to the db
             db.put(Snippet(email=email, week=week, text=text, private=private))
 
-        # TODO(csilvers): keep the username argument, if any
-        self.redirect("/?msg=Snippet+saved")
+        self.redirect("/?msg=Snippet+saved&u=%s" % urllib.quote(email))
+
+
+class Settings(webapp.RequestHandler):
+    """Page to display a user's settings (from class User), for modification."""
+
+    def get(self):
+        if not users.get_current_user():
+            return _login_page(self.request, self.response)
+
+        user_email = self.request.get('u', users.get_current_user().email())
+        if not _logged_in_user_has_permission_for(user_email):
+            raise RuntimeError('You do not have permissions to view user'
+                               ' settings for %s' % user_email)
+        user = _get_or_create_user(user_email)
+
+        template_values = {
+            'logout_url': users.create_logout_url('/'),
+            'message': self.request.get('msg'),
+            'username': user.email,
+            'view_week': _existingsnippet_monday(_TODAY),
+            'user': user,
+            # We could get this from user, but we want to replace
+            # commas with newlines for printing.
+            'wants_to_view': user.wants_to_view.replace(',', '\n'),
+            }
+        path = os.path.join(os.path.dirname(__file__), 'settings.html')
+        self.response.out.write(template.render(path, template_values))
+
+
+class UpdateSettings(webapp.RequestHandler):
+    """Updates the db with modifications from the Settings page."""
+
+    def get(self):
+        if not users.get_current_user():
+            return _login_page(self.request, self.response)
+
+        user_email = self.request.get('u', users.get_current_user().email())
+        if not _logged_in_user_has_permission_for(user_email):
+            raise RuntimeError('You do not have permissions to modify user'
+                               ' settings for %s' % user_email)
+        user = _get_or_create_user(user_email)
+
+        category = self.request.get('category')
+
+        # We want this list to be comma-separated, but people are
+        # likely to use both commas and newlines to separate.  Convert
+        # here.  Also get rid of whitespace, which cannot be in emails.
+        wants_to_view = self.request.get('to_view').replace('\n', ',')
+        wants_to_view = wants_to_view.replace(' ', '')
+
+        user.category = category or '(unknown)'
+        user.wants_to_view = wants_to_view
+        db.put(user)
+
+        self.redirect("/settings?msg=Changes+saved&u=%s"
+                      % urllib.quote(user_email))
 
 
 application = webapp.WSGIApplication([('/', UserPage),
+                                      ('/weekly', SummaryPage),
                                       ('/update_snippet', UpdateSnippet),
+                                      ('/settings', Settings),
+                                      ('/update_settings', UpdateSettings),
                                       ],
                                       debug=True)
 

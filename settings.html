@@ -1,0 +1,56 @@
+{% autoescape on %}
+<html>
+<head>
+  <title>User settings for {{username}}</title>
+</head>
+
+<body>
+
+<p><font size="-1"><div align="right">
+user settings |
+<a href="{{logout_url}}">logout</a>
+</div></font></p>
+
+{% if message %}
+<font color="red" size="+2"><b>{{message}}</b></font>
+{% endif %}
+
+<form action="/" method="get">
+<i>See snippets for <input type="textbox" name="u" value="{{username}}"></i>
+<input type="submit" value="View">
+</form>
+
+<form action="/weekly" method="get">
+<i>See snippets for the week of
+<input type="textbox" name="week" value="{{view_week|date:"m-d-Y"}}"></i>
+(format: MM-DD-YYYY)
+<input type="submit" value="View">
+</form>
+
+<hr>
+
+<h2>User settings for {{username}}</h2>
+
+<form action="/update_settings" method="get">
+
+<p><b>Email address</b> (cannot be changed):
+<input type="hidden" name="u" value="{{user.email}}">{{user.email}}
+</p>
+
+<p><b>Category:</b>
+<input type="textbox" name="category" value="{{user.category}}">
+</p>
+
+<p><b>Email addresses of people to view snippets of</b>
+(one per line, "all" for everybody):<br>
+(TODO(csilvers): this field is currently ignored)<br>
+<textarea name="to_view" rows="20" cols="60">{{wants_to_view}}</textarea>
+</p>
+
+<input type="submit" value="Submit">
+
+</form>
+
+</body>
+</html>
+{% endautoescape %}

@@ -14,14 +14,3 @@ indexes:
   properties:
   - name: email
   - name: week
-
-- kind: Snippet
-  properties:
-  - name: user
-  - name: week
-
-- kind: Snippet
-  properties:
-  - name: user
-  - name: week
-    direction: desc
