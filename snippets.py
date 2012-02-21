@@ -30,18 +30,28 @@ else:
     HOST_NAME = os.environ['SERVER_NAME']
 
 
+# Note: I use email address rather than a UserProperty to uniquely
+# identify a user.  As per,
+# http://code.google.com/appengine/docs/python/users/userobjects.html
+# a UserProperty is an email+unique id, so if a person changes their
+# email the UserProperty doesn't match anymore anyway.  And non-google
+# users can't have a unique id, so if I want to expand the snippet
+# server later that won't scale.  But email seems like a fine unique
+# identifier.  If someone changes email address and wants to take their
+# snippets with them, we can add functionality to support that later.
+
 class User(db.Model):
     """User preferences."""
-    user = db.UserProperty(auto_current_user_add=True)
-    category = db.StringProperty()       # used to group snippets together
-    wants_email_for = db.TextProperty()  # comma-separated list of usernames
+    email = db.StringProperty(required=True)  # The key to this record
+    category = db.StringProperty(default='')  # used to group snippets together
+    wants_email_for = db.TextProperty(default='all')    # comma-separated list
 
 
 class Snippet(db.Model):
     """Every snippet is identified by the monday of the week it goes with."""
-    user = db.UserProperty(auto_current_user_add=True)
-    week = db.DateProperty(required=True)      # the monday of the week
-    text = db.TextProperty()
+    email = db.StringProperty(required=True) # with week, the key to this record
+    week = db.DateProperty(required=True)    # the monday of the week
+    text = db.TextProperty(default='(No snippet for this week)')
     private = db.BooleanProperty(default=False)
 
 
@@ -54,7 +64,17 @@ def _login_page(request, response):
                        % users.create_login_url(request.uri))
 
 
-def fill_in_missing_snippets(existing_snippets, user, today):
+def _this_monday(today):
+    """Return a datetime.date object representing the monday for new snippets."""
+    today_weekday = today.weekday()   # monday == 0, sunday == 6
+    if today_weekday <= 2:            # wed or before
+        end_monday = today - datetime.timedelta(today_weekday + 7)
+    else:
+        end_monday = today - datetime.timedelta(today_weekday)        
+    return end_monday
+
+
+def fill_in_missing_snippets(existing_snippets, user_email, today):
     """Make sure that the snippets array has a Snippet entry for every week.
 
     The db may have holes in it -- weeks where the user didn't write a
@@ -67,7 +87,7 @@ def fill_in_missing_snippets(existing_snippets, user, today):
          The first snippet in the list is assumed to be the oldest
          snippet from that user (at least, it's where we start filling
          from).
-       user: a db.User object representing the person whose snippets it is.
+       user_email: the email of the person whose snippets it is.
        today: a datetime.date object representing the current day.
          We fill up to then.  If today is wed or before, then we
          fill up to the previous week.  If it's thurs or after, we
@@ -76,27 +96,20 @@ def fill_in_missing_snippets(existing_snippets, user, today):
     Returns:
       A new list of Snippet objects, without any holes.
     """
-    no_snippet_text = '(No snippet for this week)'
-    today_weekday = today.weekday()   # monday == 0, sunday == 6
-    if today_weekday <= 2:            # wed or before
-        end_monday = today - datetime.timedelta(today_weekday + 7)
-    else:
-        end_monday = today - datetime.timedelta(today_weekday)        
-
+    end_monday = _this_monday(today)
     if not existing_snippets:         # no snippets at all?  Just do this week
-        return [Snippet(user=user, week=end_monday, text=no_snippet_text)]
+        return [Snippet(email=user_email, week=end_monday)]
 
     # Add a sentinel, one week past the last week we actually want.
     # We'll remove it at the end.
-    existing_snippets.append(Snippet(user=user,
+    existing_snippets.append(Snippet(email=user_email,
                                      week=end_monday + datetime.timedelta(7)))
 
     all_snippets = [existing_snippets[0]]   # start with the oldest snippet
     for snippet in existing_snippets[1:]:
         while snippet.week - all_snippets[-1].week > datetime.timedelta(7):
             missing_week = all_snippets[-1].week + datetime.timedelta(7)
-            all_snippets.append(Snippet(user=user, week=missing_week,
-                                        text=no_snippet_text))
+            all_snippets.append(Snippet(email=user_email, week=missing_week))
         all_snippets.append(snippet)
 
     # Get rid of the sentinel we added above.
@@ -112,27 +125,28 @@ class UserPage(webapp.RequestHandler):
 
         user_q = User.all()
         # TODO(csilvers): allow other users
-        user_q.filter('user = ', users.get_current_user())
+        user_q.filter('email = ', users.get_current_user().email())
         results = user_q.fetch(1)
         if results:
             user = results[0]
         else:
-            user = User(user=users.get_current_user())
+            user = User(email=users.get_current_user().email())
             db.put(user)
 
         snippets_q = Snippet.all()
-        snippets_q.filter('user = ', user.user)
+        snippets_q.filter('email = ', user.email)
         snippets_q.order('week')            # note this puts oldest snippet first
         snippets = snippets_q.fetch(1000)   # good for many years...
 
         # TODO(csilvers): allow mocking in a different day
         _TODAY = datetime.datetime.now().date() + datetime.timedelta(100) #!!
-        snippets = fill_in_missing_snippets(snippets, user.user, _TODAY)
+        snippets = fill_in_missing_snippets(snippets, user.email, _TODAY)
         snippets.reverse()                  # get to newest snippet first
 
         template_values = {
             'message': self.request.get('msg'),
-            'username': user.user.nickname(),
+            'username': user.email,
+            'editable': user.email == users.get_current_user().email(),
             'snippets': snippets,
             }
         path = os.path.join(os.path.dirname(__file__), 'user_snippets.html')
@@ -153,6 +167,7 @@ class UpdateSnippet(webapp.RequestHandler):
 
         # TODO(csilvers): allow other users
         user = users.get_current_user()
+        email = user.email()
 
         week_string = self.request.get('week')
         week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
@@ -163,7 +178,7 @@ class UpdateSnippet(webapp.RequestHandler):
         private = self.request.get('private') == 'True'
 
         q = Snippet.all()
-        q.filter('user = ', user)
+        q.filter('email = ', email)
         q.filter('week = ', week)
         results = q.fetch(1)
         if results:
@@ -171,7 +186,7 @@ class UpdateSnippet(webapp.RequestHandler):
             results[0].private = private
             db.put(results[0])       # update the snippet in the db
         else:                        # add the snippet to the db
-            db.put(Snippet(user=user, week=week, text=text, private=private))
+            db.put(Snippet(email=email, week=week, text=text, private=private))
 
         # TODO(csilvers): keep the username argument, if any
         self.redirect("/?msg=Snippet+saved")

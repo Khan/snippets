@@ -26,7 +26,11 @@
   <input type="hidden" name="week" value="{{snippet.week|date:"m-d-Y"}}">
 
   {% if snippet.private %}<font color="#cccccc">{% endif %}
-  <textarea name="snippet" rows="6" cols="80">{{snippet.text|escape}}</textarea>
+  {% if editable %}
+    <textarea name="snippet" rows="6" cols="80">{{snippet.text|escape}}</textarea>
+  {% else %}
+    <pre>{{snippet.text|escape}}</pre>
+  {% endif %}
   {% if snippet.private %}</font>{% endif %}
 
   </form>

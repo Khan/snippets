@@ -12,6 +12,11 @@ indexes:
 
 - kind: Snippet
   properties:
+  - name: email
+  - name: week
+
+- kind: Snippet
+  properties:
   - name: user
   - name: week
 
