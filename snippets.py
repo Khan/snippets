@@ -25,7 +25,7 @@ __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 
 
 # TODO(csilvers): allow mocking in a different day
-_TODAY = datetime.datetime.now().date() + datetime.timedelta(100) #!!
+_TODAY = datetime.datetime.now().date()
 
 
 port = os.environ['SERVER_PORT']
@@ -183,6 +183,36 @@ def fill_in_missing_snippets(existing_snippets, user_email, today):
     return all_snippets
 
 
+class UserPage(webapp.RequestHandler):
+    """Show all the snippets for a single user."""
+
+    def get(self):
+        if not users.get_current_user():
+            return _login_page(self.request, self.response)
+
+        user_email = self.request.get('u', users.get_current_user().email())
+        user = _get_or_create_user(user_email)
+
+        snippets_q = Snippet.all()
+        snippets_q.filter('email = ', user.email)
+        snippets_q.order('week')            # note this puts oldest snippet first
+        snippets = snippets_q.fetch(1000)   # good for many years...
+
+        snippets = fill_in_missing_snippets(snippets, user.email, _TODAY)
+        snippets.reverse()                  # get to newest snippet first
+
+        template_values = {
+            'logout_url': users.create_logout_url('/'),
+            'message': self.request.get('msg'),
+            'username': user.email,
+            'view_week': _existingsnippet_monday(_TODAY),
+            'editable': _logged_in_user_has_permission_for(user.email),
+            'snippets': snippets,
+            }
+        path = os.path.join(os.path.dirname(__file__), 'user_snippets.html')
+        self.response.out.write(template.render(path, template_values))    
+
+
 class SummaryPage(webapp.RequestHandler):
     """Show all the snippets for a single week."""
     
@@ -240,36 +270,6 @@ class SummaryPage(webapp.RequestHandler):
             'categories_and_snippets': categories_and_snippets,
             }
         path = os.path.join(os.path.dirname(__file__), 'weekly_snippets.html')
-        self.response.out.write(template.render(path, template_values))    
-
-
-class UserPage(webapp.RequestHandler):
-    """Show all the snippets for a single user."""
-
-    def get(self):
-        if not users.get_current_user():
-            return _login_page(self.request, self.response)
-
-        user_email = self.request.get('u', users.get_current_user().email())
-        user = _get_or_create_user(user_email)
-
-        snippets_q = Snippet.all()
-        snippets_q.filter('email = ', user.email)
-        snippets_q.order('week')            # note this puts oldest snippet first
-        snippets = snippets_q.fetch(1000)   # good for many years...
-
-        snippets = fill_in_missing_snippets(snippets, user.email, _TODAY)
-        snippets.reverse()                  # get to newest snippet first
-
-        template_values = {
-            'logout_url': users.create_logout_url('/'),
-            'message': self.request.get('msg'),
-            'username': user.email,
-            'view_week': _existingsnippet_monday(_TODAY),
-            'editable': _logged_in_user_has_permission_for(user.email),
-            'snippets': snippets,
-            }
-        path = os.path.join(os.path.dirname(__file__), 'user_snippets.html')
         self.response.out.write(template.render(path, template_values))    
 
 
@@ -365,11 +365,31 @@ class UpdateSettings(webapp.RequestHandler):
                       % urllib.quote(user_email))
 
 
+# The following two classes are called by cron.
+
+class SendReminderEmail(webapp.RequestHandler):
+    """Send an email to everyone who doesn't have a snippet for this week."""
+
+    def get(self):
+        self.response.out.write('TODO(csilvers): implement this')
+
+
+class SendViewEmail(webapp.RequestHandler):
+    """Send an email to everyone telling them to look at the week's snippets."""
+
+    def get(self):
+        self.response.out.write('TODO(csilvers): implement this')
+
+
 application = webapp.WSGIApplication([('/', UserPage),
                                       ('/weekly', SummaryPage),
                                       ('/update_snippet', UpdateSnippet),
                                       ('/settings', Settings),
                                       ('/update_settings', UpdateSettings),
+                                      ('/admin/send_reminder_email',
+                                       SendReminderEmail),
+                                      ('/admin/send_view_email',
+                                       SendViewEmail),
                                       ],
                                       debug=True)
 
