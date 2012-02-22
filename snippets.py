@@ -460,7 +460,7 @@ week.  To do so, visit
 
 If you'd like to stop getting these reminder emails, visit
    http://weekly-snippets.appspot.com/settings
-and click 'no' under 'reminder emails'.
+and click 'no' under 'Receive reminder emails'.
 
 Regards,
 your friendly neighborhood snippet server
@@ -495,7 +495,7 @@ already!  To do so, visit
         body += """
 If you'd like to stop getting these reminder emails, visit
    http://weekly-snippets.appspot.com/settings
-and click 'no' under 'reminder emails'.
+and click 'no' under 'Receive eminder emails'.
 
 Enjoy!
 your friendly neighborhood snippet server
