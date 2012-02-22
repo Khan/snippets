@@ -6,28 +6,7 @@
 
 <body>
 
-<p><font size="-1"><div align="right">
-user settings |
-<a href="{{logout_url}}">logout</a>
-</div></font></p>
-
-{% if message %}
-<font color="red" size="+2"><b>{{message}}</b></font>
-{% endif %}
-
-<form action="/" method="get">
-<i>See snippets for <input type="textbox" name="u" value="{{username}}"></i>
-<input type="submit" value="View">
-</form>
-
-<form action="/weekly" method="get">
-<i>See snippets for the week of
-<input type="textbox" name="week" value="{{view_week|date:"m-d-Y"}}"></i>
-(format: MM-DD-YYYY)
-<input type="submit" value="View">
-</form>
-
-<hr>
+{% include "header.html" %}
 
 <h2>User settings for {{username}}</h2>
 

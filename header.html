@@ -1,0 +1,24 @@
+<p><font size="-1"><div align="right">
+<a href="/settings?u={{username}}">user settings</a> |
+<a href="{{logout_url}}">logout</a>
+</div></font></p>
+
+{% if message %}
+<font color="red" size="+2"><b>{{message}}</b></font>
+{% endif %}
+
+<form action="/weekly" method="get">
+  <i>See snippets for the week of
+  <input type="textbox" size="10" name="week" value="{{view_week|date:"m-d-Y"}}">
+  <input type="submit" value="View">
+  </i>
+</form>
+
+<form action="/" method="get">
+  <i>See snippets for
+  <input type="textbox" size="30" name="u" value="{{username}}">
+  <input type="submit" value="View">
+  </i>
+</form>
+
+<hr>
