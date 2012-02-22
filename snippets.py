@@ -7,6 +7,7 @@ from google.appengine.dist import use_library
 os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
 use_library('django', '1.2')
 
+from google.appengine.api import mail
 from google.appengine.api import users
 from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
@@ -401,18 +402,93 @@ class UpdateSettings(webapp.RequestHandler):
 
 # The following two classes are called by cron.
 
+def _get_email_to_current_snippet_map(today):
+    """Return a map from email to True if they've written snippets this week.
+
+    Goes through all users registered on the system, and checks if
+    they have a snippet in the db for the appropriate snippet-week for
+    'today'.  If so, they get entered into the return-map with value
+    True.  If not, they have value False.
+
+    Arguments:
+      today: a datetime.date object representing the
+        'current' day.  We use the normal algorithm to determine what is
+        the most recent snippet-week for this day.
+
+    Returns:
+      a map from email (user.email for each user) to True or False,
+      depending on if they've written snippets for this week or not.
+    """
+    user_q = User.all()
+    users = user_q.fetch(1000)
+    retval = {}
+    for user in users:
+        retval[user.email] = False   # assume the worst
+
+    week = _existingsnippet_monday(today)
+    snippets_q = Snippet.all()
+    snippets_q.filter('week = ', week)
+    snippets = snippets_q.fetch(1000)
+    for snippet in snippets:
+        retval[snippet.email] = True
+
+    return retval
+
+
 class SendReminderEmail(webapp.RequestHandler):
     """Send an email to everyone who doesn't have a snippet for this week."""
 
+    def _send_mail(self, email):
+        body = """\
+Just a reminder that weekly snippets are due at 5pm today!  Our
+records show you have not yet entered snippet information for last
+week.  To do so, visit
+   http://weekly-snippets.appspot.com/
+
+Regards,
+your friendly neighborhood snippet server
+"""
+        mail.send_mail(sender=('Khan Academy Snippet Server'
+                               ' <csilvers+snippets@khanacademy.org>'),
+                       to=email,
+                       subject='Weekly snippets due today at 5pm',
+                       body=body)
+
     def get(self):
-        self.response.out.write('TODO(csilvers): implement this')
+        email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
+        for (user_email, has_snippet) in email_to_has_snippet.iteritems():
+            if not has_snippet:
+                self._send_mail(user_email)
 
 
 class SendViewEmail(webapp.RequestHandler):
     """Send an email to everyone telling them to look at the week's snippets."""
 
+    def _send_mail(self, email, has_snippets):
+        body = """\
+The weekly snippets for last week have been posted.  To see them, visit
+   http://weekly-snippets.appspot.com/weekly
+"""
+        if not has_snippets:
+            body += """
+It's not too late to enter in snippets for last week if you haven't
+already!  To do so, visit
+   http://weekly-snippets.appspot.com/
+"""
+        body += """
+Enjoy!
+your friendly neighborhood snippet server
+"""
+        mail.send_mail(sender=('Khan Academy Snippet Server'
+                               ' <csilvers+snippets@khanacademy.org>'),
+                       to=email,
+                       subject='Weekly snippets are ready!',
+                       body=body)
+
     def get(self):
-        self.response.out.write('TODO(csilvers): implement this')
+        email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
+        for (user_email, has_snippet) in email_to_has_snippet.iteritems():
+            self._send_mail(user_email, has_snippet)
 
 
 application = webapp.WSGIApplication([('/', UserPage),
