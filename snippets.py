@@ -217,22 +217,21 @@ class UserPage(webapp.RequestHandler):
             return _login_page(self.request, self.response)
 
         user_email = self.request.get('u', _current_user_email())
-        user = _get_or_create_user(user_email)
 
         snippets_q = Snippet.all()
-        snippets_q.filter('email = ', user.email)
+        snippets_q.filter('email = ', user_email)
         snippets_q.order('week')            # note this puts oldest snippet first
         snippets = snippets_q.fetch(1000)   # good for many years...
 
-        snippets = fill_in_missing_snippets(snippets, user.email, _TODAY)
+        snippets = fill_in_missing_snippets(snippets, user_email, _TODAY)
         snippets.reverse()                  # get to newest snippet first
 
         template_values = {
             'logout_url': users.create_logout_url('/'),
             'message': self.request.get('msg'),
-            'username': user.email,
+            'username': user_email,
             'view_week': _existingsnippet_monday(_TODAY),
-            'editable': _logged_in_user_has_permission_for(user.email),
+            'editable': _logged_in_user_has_permission_for(user_email),
             'snippets': snippets,
             }
         path = os.path.join(os.path.dirname(__file__), 'user_snippets.html')
@@ -340,6 +339,10 @@ class UpdateSnippet(webapp.RequestHandler):
             db.put(results[0])       # update the snippet in the db
         else:                        # add the snippet to the db
             db.put(Snippet(email=email, week=week, text=text, private=private))
+
+        # When adding a snippet, make sure we create a user record for
+        # that email as well, if it doesn't already exist.
+        _get_or_create_user(email)
 
         self.redirect("/?msg=Snippet+saved&u=%s" % urllib.quote(email))
 
