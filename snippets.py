@@ -56,7 +56,6 @@ class User(db.Model):
 
 class Snippet(db.Model):
     """Every snippet is identified by the monday of the week it goes with."""
-    # email should come first, so default sort sorts snippets by email
     email = db.StringProperty(required=True) # with week, the key to this record
     week = db.DateProperty(required=True)    # the monday of the week
     text = db.TextProperty(default='(No snippet for this week)')
@@ -286,8 +285,7 @@ class SummaryPage(webapp.RequestHandler):
         categories_and_snippets = []
         for category in snippets_by_category:
             snippets = snippets_by_category[category]
-            # This sorts by email, which is the 1st field in the Snippet class.
-            snippets.sort()
+            snippets.sort(lambda x,y: cmp(x.email, y.email))
             categories_and_snippets.append((category, snippets))
         categories_and_snippets.sort()
 
