@@ -333,13 +333,15 @@ class UpdateSnippet(webapp.RequestHandler):
         q = Snippet.all()
         q.filter('email = ', email)
         q.filter('week = ', week)
-        results = q.fetch(1)
-        if results:
-            results[0].text = text   # just update the snippet text
-            results[0].private = private
-            db.put(results[0])       # update the snippet in the db
-        else:                        # add the snippet to the db
-            db.put(Snippet(email=email, week=week, text=text, private=private))
+        snippet = q.get()
+
+        if snippet:
+            snippet.text = text   # just update the snippet text
+            snippet.private = private
+        else:
+            # add the snippet to the db
+            snippet = Snippet(email=email, week=week, text=text, private=private)
+        db.put(snippet)
 
         # When adding a snippet, make sure we create a user record for
         # that email as well, if it doesn't already exist.
