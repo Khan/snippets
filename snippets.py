@@ -224,6 +224,8 @@ class UserPage(webapp.RequestHandler):
         snippets_q.order('week')            # note this puts oldest snippet first
         snippets = snippets_q.fetch(1000)   # good for many years...
 
+        if not _can_view_private_snippets(_current_user_email(), user_email):
+            snippets = [snippet for snippet in snippets if not snippet.private]
         snippets = fill_in_missing_snippets(snippets, user_email, _TODAY)
         snippets.reverse()                  # get to newest snippet first
 
