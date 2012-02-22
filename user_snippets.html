@@ -21,7 +21,7 @@
     <input type="hidden" name="u" value="{{username}}">
     <input type="checkbox" name="private" value="True"
            {% if snippet.private %}checked{% endif %}>
-    Snippet is private (only viewable by people in the same domain as you)
+    Snippet is private (only viewable by people in the domain <i>{{domain}}</i>)
     <br>
     <textarea name="snippet" rows="6" cols="80">{{snippet.text}}</textarea>
 

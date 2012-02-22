@@ -233,6 +233,7 @@ class UserPage(webapp.RequestHandler):
             'logout_url': users.create_logout_url('/'),
             'message': self.request.get('msg'),
             'username': user_email,
+            'domain': user_email.split('@')[-1],
             'view_week': _existingsnippet_monday(_TODAY),
             'editable': _logged_in_user_has_permission_for(user_email),
             'snippets': snippets,
