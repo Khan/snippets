@@ -52,6 +52,7 @@ class User(db.Model):
     """User preferences."""
     email = db.StringProperty(required=True)           # The key to this record
     category = db.StringProperty(default='(unknown)')  # used to group snippets
+    wants_email = db.BooleanProperty(default=True)     # get nag emails?
     wants_to_view = db.TextProperty(default='all')     # comma-separated list
 
 
@@ -389,6 +390,8 @@ class UpdateSettings(webapp.RequestHandler):
 
         category = self.request.get('category')
 
+        wants_email = self.request.get('reminder_email') == 'yes'
+
         # We want this list to be comma-separated, but people are
         # likely to use both commas and newlines to separate.  Convert
         # here.  Also get rid of whitespace, which cannot be in emails.
@@ -396,6 +399,7 @@ class UpdateSettings(webapp.RequestHandler):
         wants_to_view = wants_to_view.replace(' ', '')
 
         user.category = category or '(unknown)'
+        user.wants_email = wants_email
         user.wants_to_view = wants_to_view
         db.put(user)
 
@@ -413,6 +417,9 @@ def _get_email_to_current_snippet_map(today):
     'today'.  If so, they get entered into the return-map with value
     True.  If not, they have value False.
 
+    Note that users whose 'wants_email' field is set to False will not
+    be included in either list.
+
     Arguments:
       today: a datetime.date object representing the
         'current' day.  We use the normal algorithm to determine what is
@@ -426,14 +433,17 @@ def _get_email_to_current_snippet_map(today):
     users = user_q.fetch(1000)
     retval = {}
     for user in users:
-        retval[user.email] = False   # assume the worst
+        if not user.wants_email:         # ignore this user
+            continue
+        retval[user.email] = False       # assume the worst, for now
 
     week = _existingsnippet_monday(today)
     snippets_q = Snippet.all()
     snippets_q.filter('week = ', week)
     snippets = snippets_q.fetch(1000)
     for snippet in snippets:
-        retval[snippet.email] = True
+        if snippet.email in retval:      # don't introduce new keys here
+            retval[snippet.email] = True
 
     return retval
 

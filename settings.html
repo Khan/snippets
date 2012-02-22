@@ -20,13 +20,20 @@
 <input type="textbox" name="category" value="{{user.category}}">
 </p>
 
+<p><b>Receive reminder emails?:</b>
+<input type="radio" name="reminder_email" value="yes"
+       {% if user.wants_email %}checked{% endif %}> yes
+<input type="radio" name="reminder_email" value="no"
+       {% if not user.wants_email %}checked{% endif %}> no
+</p>
+
 <p><b>Email addresses of people to view snippets of</b>
 (one per line, "all" for everybody):<br>
 (TODO(csilvers): this field is currently ignored)<br>
 <textarea name="to_view" rows="20" cols="60">{{wants_to_view}}</textarea>
 </p>
 
-<input type="submit" value="Submit">
+<input type="submit" value="Save">
 
 </form>
 
