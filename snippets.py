@@ -3,8 +3,8 @@ import os
 import urllib
 
 # Before importing anything from appengine, set the django version we want.
+# Taken from http://stackoverflow.com/questions/4994913/app-engine-default-django-version-change
 from google.appengine.dist import use_library
-os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
 use_library('django', '1.2')
 
 from google.appengine.api import mail
@@ -53,6 +53,7 @@ class User(db.Model):
     email = db.StringProperty(required=True)           # The key to this record
     category = db.StringProperty(default='(unknown)')  # used to group snippets
     wants_email = db.BooleanProperty(default=True)     # get nag emails?
+    # TODO(csilvers): make a ListProperty instead.
     wants_to_view = db.TextProperty(default='all')     # comma-separated list
 
 
@@ -66,11 +67,11 @@ class Snippet(db.Model):
 
 def _login_page(request, response):
     """Write the login page to a response object."""
-    response.out.write('<html><body>You must be logged in to use'
-                       ' the snippet server.'
-                       ' <a href="%s">Log in</a>.'
-                       '</body></html>'
-                       % users.create_login_url(request.uri))
+    template_values = {
+        'login_url': users.create_login_url(request.uri),
+    }
+    path = os.path.join(os.path.dirname(__file__), 'login.html')
+    response.out.write(template.render(path, template_values))    
 
 
 def _current_user_email():
@@ -82,10 +83,7 @@ def _get_user(email):
     """Return the user object with the given email, or None if not found."""
     q = User.all()
     q.filter('email = ', email)
-    results = q.fetch(1)
-    if results:
-        return results[0]
-    return None
+    return q.get()
 
 
 def _get_or_create_user(email):
@@ -293,7 +291,7 @@ class SummaryPage(webapp.RequestHandler):
         categories_and_snippets = []
         for category in snippets_by_category:
             snippets = snippets_by_category[category]
-            snippets.sort(lambda x,y: cmp(x.email, y.email))
+            snippets.sort(key=lambda snippet: snippet.email)
             categories_and_snippets.append((category, snippets))
         categories_and_snippets.sort()
 
@@ -324,6 +322,9 @@ class UpdateSnippet(webapp.RequestHandler):
             return _login_page(self.request, self.response)
 
         email = self.request.get('u', _current_user_email())
+        if not _logged_in_user_has_permission_for(email):
+            raise RuntimeError('You do not have permissions to update user'
+                               ' snippets for %s' % email)
 
         week_string = self.request.get('week')
         week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
@@ -457,6 +458,7 @@ class SendReminderEmail(webapp.RequestHandler):
     """Send an email to everyone who doesn't have a snippet for this week."""
 
     def _send_mail(self, email):
+        # TODO(csilvers): make this a template instead.
         body = """\
 Just a reminder that weekly snippets are due at 5pm today!  Our
 records show you have not yet entered snippet information for last
@@ -487,6 +489,7 @@ class SendViewEmail(webapp.RequestHandler):
     """Send an email to everyone telling them to look at the week's snippets."""
 
     def _send_mail(self, email, has_snippets):
+        # TODO(csilvers): make this a template instead.
         body = """\
 The weekly snippets for last week have been posted.  To see them, visit
    http://weekly-snippets.appspot.com/weekly
@@ -531,8 +534,8 @@ application = webapp.WSGIApplication([('/', UserPage),
 
 
 def main():
-  run_wsgi_app(application)
+    run_wsgi_app(application)
 
 
 if __name__ == "__main__":
-  main()
+    main()
