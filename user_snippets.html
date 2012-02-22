@@ -31,7 +31,7 @@
     <h3>Snippets for the week of {{snippet.week|date:"F j, Y"}}</h3>
 
     {% if snippet.private %}<font color="#888888">{% endif %}
-    <pre>{{snippet.text|escape}}</pre>
+    <pre>{{snippet.text}}</pre>
     {% if snippet.private %}</font>{% endif %}
   {% endif %}
 

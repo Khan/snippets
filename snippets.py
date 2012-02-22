@@ -260,7 +260,10 @@ class SummaryPage(webapp.RequestHandler):
         for result in results:
             email_to_category[result.email] = result.category
 
-        # Collect the snippets by category.
+        # Collect the snippets by category.  As we see each email,
+        # delete it from email_to_category.  At the end of this,
+        # email_to_category will hold people who did not give
+        # snippets this week.
         snippets_by_category = {}
         for snippet in snippets:
             # Ignore this snippet if we don't have permission to view it.
@@ -269,6 +272,13 @@ class SummaryPage(webapp.RequestHandler):
                                            snippet.email)):
                 category = email_to_category.get(snippet.email, '(unknown)')
                 snippets_by_category.setdefault(category, []).append(snippet)
+                del email_to_category[snippet.email]
+
+        # Add in empty snippets for the people who didn't have any.
+        for (email, category) in email_to_category.iteritems():
+            snippet = Snippet(email=email, week=week,
+                              text='(no snippet this week)')
+            snippets_by_category.setdefault(category, []).append(snippet)
 
         # Now get a sorted list, categories in alphabetical order and
         # each snippet-author within the category in alphabetical

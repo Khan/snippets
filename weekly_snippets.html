@@ -20,7 +20,9 @@ Snippets for the week of {{view_week|date:"F j, Y"}}
 
     {% for snippet in category_and_snippets.1 %}
       <p>{{snippet.email}}:</p>
+      {% if snippet.private %}<font color="#888888">{% endif %}
       <blockquote><pre>{{snippet.text}}</pre></blockquote>
+      {% if snippet.private %}</font>{% endif %}
     {% endfor %}
 
 {% endfor %}
