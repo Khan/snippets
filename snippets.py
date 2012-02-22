@@ -3,8 +3,8 @@ import os
 import urllib
 
 # Before importing anything from appengine, set the django version we want.
+# Taken from http://stackoverflow.com/questions/4994913/app-engine-default-django-version-change
 from google.appengine.dist import use_library
-os.environ['DJANGO_SETTINGS_MODULE'] = 'settings'
 use_library('django', '1.2')
 
 from google.appengine.api import mail
@@ -66,11 +66,11 @@ class Snippet(db.Model):
 
 def _login_page(request, response):
     """Write the login page to a response object."""
-    response.out.write('<html><body>You must be logged in to use'
-                       ' the snippet server.'
-                       ' <a href="%s">Log in</a>.'
-                       '</body></html>'
-                       % users.create_login_url(request.uri))
+    template_values = {
+        'login_url': users.create_login_url(request.uri),
+    }
+    path = os.path.join(os.path.dirname(__file__), 'login.html')
+    response.out.write(template.render(path, template_values))    
 
 
 def _current_user_email():
@@ -82,10 +82,7 @@ def _get_user(email):
     """Return the user object with the given email, or None if not found."""
     q = User.all()
     q.filter('email = ', email)
-    results = q.fetch(1)
-    if results:
-        return results[0]
-    return None
+    return q.get()
 
 
 def _get_or_create_user(email):
@@ -290,7 +287,7 @@ class SummaryPage(webapp.RequestHandler):
         categories_and_snippets = []
         for category in snippets_by_category:
             snippets = snippets_by_category[category]
-            snippets.sort(lambda x,y: cmp(x.email, y.email))
+            snippets.sort(key=lambda snippet: snippet.email)
             categories_and_snippets.append((category, snippets))
         categories_and_snippets.sort()
 
@@ -321,6 +318,9 @@ class UpdateSnippet(webapp.RequestHandler):
             return _login_page(self.request, self.response)
 
         email = self.request.get('u', _current_user_email())
+        if not _logged_in_user_has_permission_for(email):
+            raise RuntimeError('You do not have permissions to update user'
+                               ' snippets for %s' % email)
 
         week_string = self.request.get('week')
         week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
@@ -333,12 +333,12 @@ class UpdateSnippet(webapp.RequestHandler):
         q = Snippet.all()
         q.filter('email = ', email)
         q.filter('week = ', week)
-        results = q.fetch(1)
-        if results:
-            results[0].text = text   # just update the snippet text
-            results[0].private = private
-            db.put(results[0])       # update the snippet in the db
-        else:                        # add the snippet to the db
+        result = q.get()
+        if result:
+            result.text = text   # just update the snippet text
+            result.private = private
+            db.put(result)       # update the snippet in the db
+        else:                    # add the snippet to the db
             db.put(Snippet(email=email, week=week, text=text, private=private))
 
         # When adding a snippet, make sure we create a user record for
@@ -452,6 +452,7 @@ class SendReminderEmail(webapp.RequestHandler):
     """Send an email to everyone who doesn't have a snippet for this week."""
 
     def _send_mail(self, email):
+        # TODO(csilvers): make this a template instead.
         body = """\
 Just a reminder that weekly snippets are due at 5pm today!  Our
 records show you have not yet entered snippet information for last
@@ -482,6 +483,7 @@ class SendViewEmail(webapp.RequestHandler):
     """Send an email to everyone telling them to look at the week's snippets."""
 
     def _send_mail(self, email, has_snippets):
+        # TODO(csilvers): make this a template instead.
         body = """\
 The weekly snippets for last week have been posted.  To see them, visit
    http://weekly-snippets.appspot.com/weekly
@@ -526,8 +528,8 @@ application = webapp.WSGIApplication([('/', UserPage),
 
 
 def main():
-  run_wsgi_app(application)
+    run_wsgi_app(application)
 
 
 if __name__ == "__main__":
-  main()
+    main()
