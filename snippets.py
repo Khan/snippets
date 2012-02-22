@@ -53,6 +53,7 @@ class User(db.Model):
     email = db.StringProperty(required=True)           # The key to this record
     category = db.StringProperty(default='(unknown)')  # used to group snippets
     wants_email = db.BooleanProperty(default=True)     # get nag emails?
+    # TODO(csilvers): make a ListProperty instead.
     wants_to_view = db.TextProperty(default='all')     # comma-separated list
 
 
