@@ -495,7 +495,7 @@ already!  To do so, visit
         body += """
 If you'd like to stop getting these reminder emails, visit
    http://weekly-snippets.appspot.com/settings
-and click 'no' under 'Receive eminder emails'.
+and click 'no' under 'Receive reminder emails'.
 
 Enjoy!
 your friendly neighborhood snippet server
