@@ -120,8 +120,9 @@ def _newsnippet_monday(today):
 def _existingsnippet_monday(today):
     """Return a datetime.date object: the monday for existing snippets.
 
-    The rule is that we show the snippets for the most recent monday
-    (including today).
+    The rule is that we show the snippets for the previous week.  That
+    means we subtract to the current monday, then subtract 7 more days
+    to get the snippets for the previous week.
 
     Arguments:
        today: the current day, used to calculate the best monday.
@@ -129,7 +130,7 @@ def _existingsnippet_monday(today):
     Returns:
        The Monday that we are accepting new snippets for, by default.
     """
-    return today - datetime.timedelta(today.weekday())  # monday == 0
+    return today - datetime.timedelta(today.weekday() + 7)
 
 
 def _logged_in_user_has_permission_for(email):
