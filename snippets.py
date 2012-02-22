@@ -63,7 +63,7 @@ class Snippet(db.Model):
 
 
 def _login_page(request, response):
-    """Writes the login page to a response object."""
+    """Write the login page to a response object."""
     response.out.write('<html><body>You must be logged in to use'
                        ' the snippet server.'
                        ' <a href="%s">Log in</a>.'
@@ -71,8 +71,13 @@ def _login_page(request, response):
                        % users.create_login_url(request.uri))
 
 
+def _current_user_email():
+    """Return the logged-in user's email address, converted into lowercase."""
+    return users.get_current_user().email().lower()
+
+
 def _get_user(email):
-    """Returns the user object with the given email, or None if not found."""
+    """Return the user object with the given email, or None if not found."""
     q = User.all()
     q.filter('email = ', email)
     results = q.fetch(1)
@@ -82,7 +87,7 @@ def _get_user(email):
 
 
 def _get_or_create_user(email):
-    """Returns the user object with the given email, creating if if needed."""
+    """Return the user object with the given email, creating if if needed."""
     user = _get_user(email)
     if user:
         pass
@@ -134,12 +139,11 @@ def _existingsnippet_monday(today):
 
 def _logged_in_user_has_permission_for(email):
     """Return True if the current logged-in appengine user can edit this user."""
-    return (email == users.get_current_user().email() or
-            users.is_current_user_admin())
+    return (email == _current_user_email()) or users.is_current_user_admin()
 
 
 def _can_view_private_snippets(my_email, snippet_email):
-    """Returns true if I have permission to view other's private snippet.
+    """Return true if I have permission to view other's private snippet.
 
     I have permission to view if I am in the same domain as the person
     who wrote the snippet (domain is everything following the @ in the
@@ -211,7 +215,7 @@ class UserPage(webapp.RequestHandler):
         if not users.get_current_user():
             return _login_page(self.request, self.response)
 
-        user_email = self.request.get('u', users.get_current_user().email())
+        user_email = self.request.get('u', _current_user_email())
         user = _get_or_create_user(user_email)
 
         snippets_q = Snippet.all()
@@ -267,7 +271,7 @@ class SummaryPage(webapp.RequestHandler):
         for snippet in snippets:
             # Ignore this snippet if we don't have permission to view it.
             if (not snippet.private or
-                _can_view_private_snippets(users.get_current_user().email(),
+                _can_view_private_snippets(_current_user_email(),
                                            snippet.email)):
                 category = email_to_category.get(snippet.email, '(unknown)')
                 snippets_by_category.setdefault(category, []).append(snippet)
@@ -293,7 +297,7 @@ class SummaryPage(webapp.RequestHandler):
             'logout_url': users.create_logout_url('/'),
             'message': self.request.get('msg'),
             # Used only to switch to 'username' mode and to modify settings.
-            'username': users.get_current_user().email(),
+            'username': _current_user_email(),
             'prev_week': week - datetime.timedelta(7),
             'view_week': week,
             'next_week': week + datetime.timedelta(7),
@@ -315,7 +319,7 @@ class UpdateSnippet(webapp.RequestHandler):
         if not users.get_current_user():
             return _login_page(self.request, self.response)
 
-        email = self.request.get('u', users.get_current_user().email())
+        email = self.request.get('u', _current_user_email())
 
         week_string = self.request.get('week')
         week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
@@ -346,7 +350,7 @@ class Settings(webapp.RequestHandler):
         if not users.get_current_user():
             return _login_page(self.request, self.response)
 
-        user_email = self.request.get('u', users.get_current_user().email())
+        user_email = self.request.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(user_email):
             raise RuntimeError('You do not have permissions to view user'
                                ' settings for %s' % user_email)
@@ -373,7 +377,7 @@ class UpdateSettings(webapp.RequestHandler):
         if not users.get_current_user():
             return _login_page(self.request, self.response)
 
-        user_email = self.request.get('u', users.get_current_user().email())
+        user_email = self.request.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(user_email):
             raise RuntimeError('You do not have permissions to modify user'
                                ' settings for %s' % user_email)
