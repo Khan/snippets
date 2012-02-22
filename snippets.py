@@ -458,6 +458,10 @@ records show you have not yet entered snippet information for last
 week.  To do so, visit
    http://weekly-snippets.appspot.com/
 
+If you'd like to stop getting these reminder emails, visit
+   http://weekly-snippets.appspot.com/settings
+and click 'no' under 'reminder emails'.
+
 Regards,
 your friendly neighborhood snippet server
 """
@@ -489,6 +493,10 @@ already!  To do so, visit
    http://weekly-snippets.appspot.com/
 """
         body += """
+If you'd like to stop getting these reminder emails, visit
+   http://weekly-snippets.appspot.com/settings
+and click 'no' under 'reminder emails'.
+
 Enjoy!
 your friendly neighborhood snippet server
 """
