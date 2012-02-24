@@ -10,11 +10,11 @@
 <h2>Snippets for {{username}}</h2>
 
 {% for snippet in snippets %}
+  <div class="snippet">
   {% if editable %}
     <form action="/update_snippet" method="get">
 
-    <h3 class="snippet_divider">Snippets for the week of
-                                {{snippet.week|date:"F j, Y"}}
+    <h3>Snippets for the week of {{snippet.week|date:"F j, Y"}}
         &nbsp; <input type="submit" value="Update">
     </h3>
 
@@ -28,15 +28,13 @@
 
     </form>
   {% else %}
-    <h3 class="snippet_divider">Snippets for the week of
-                                {{snippet.week|date:"F j, Y"}}
-    </h3>
+    <h3>Snippets for the week of {{snippet.week|date:"F j, Y"}}</h3>
 
     {% if snippet.private %}<font color="#888888">{% endif %}
     <blockquote><pre>{{snippet.text|wordwrap:80|urlizetrunc:80}}</pre></blockquote>
     {% if snippet.private %}</font>{% endif %}
   {% endif %}
-
+  </div>
 {% endfor %}
 
 </body>
