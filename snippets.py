@@ -215,6 +215,8 @@ class UserPage(webapp.RequestHandler):
         snippets_q.order('week')            # note this puts oldest snippet first
         snippets = snippets_q.fetch(1000)   # good for many years...
 
+        if not _can_view_private_snippets(_current_user_email(), user_email):
+            snippets = [snippet for snippet in snippets if not snippet.private]
         snippets = fill_in_missing_snippets(snippets, user_email, _TODAY)
         snippets.reverse()                  # get to newest snippet first
 
@@ -222,6 +224,7 @@ class UserPage(webapp.RequestHandler):
             'logout_url': users.create_logout_url('/'),
             'message': self.request.get('msg'),
             'username': user_email,
+            'domain': user_email.split('@')[-1],
             'view_week': _existingsnippet_monday(_TODAY),
             'editable': _logged_in_user_has_permission_for(user_email),
             'snippets': snippets,
@@ -327,13 +330,15 @@ class UpdateSnippet(webapp.RequestHandler):
         q = Snippet.all()
         q.filter('email = ', email)
         q.filter('week = ', week)
-        result = q.get()
-        if result:
-            result.text = text   # just update the snippet text
-            result.private = private
-            db.put(result)       # update the snippet in the db
-        else:                    # add the snippet to the db
-            db.put(Snippet(email=email, week=week, text=text, private=private))
+        snippet = q.get()
+
+        if snippet:
+            snippet.text = text   # just update the snippet text
+            snippet.private = private
+        else:
+            # add the snippet to the db
+            snippet = Snippet(email=email, week=week, text=text, private=private)
+        db.put(snippet)
 
         # When adding a snippet, make sure we create a user record for
         # that email as well, if it doesn't already exist.
