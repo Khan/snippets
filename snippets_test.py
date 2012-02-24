@@ -665,3 +665,28 @@ class SendingEmailTestCase(UserTestBase):
                                  'not too late')
         self.assertEmailContains('has_no_snippets@example.com',
                                  'not too late')
+
+    def testViewReminderMailsSettingAndSendReminderEmail(self):
+        """Tests the user config-setting for getting emails."""
+        self.login('does_not_have_snippet@example.com')
+        self.request_fetcher.get('/update_settings?reminder_email=no')
+
+        # The control group :-)
+        self.login('has_no_snippets@example.com')
+        self.request_fetcher.get('/update_settings?reminder_email=yes')
+        
+        self.request_fetcher.get('/admin/send_reminder_email')
+        self.assertEmailNotSentTo('does_not_have_snippet@example.com')
+        self.assertEmailSentTo('has_no_snippets@example.com')
+
+    def testViewReminderMailsSettingAndSendViewEmail(self):
+        self.login('does_not_have_snippet@example.com')
+        self.request_fetcher.get('/update_settings?reminder_email=no')
+        self.login('has_no_snippets@example.com')
+        self.request_fetcher.get('/update_settings?reminder_email=yes')
+
+        self.request_fetcher.get('/admin/send_view_email')
+        self.assertEmailSentTo('has_snippet@example.com')
+        self.assertEmailNotSentTo('does_not_have_snippet@example.com')
+        self.assertEmailSentTo('has_many_snippets@example.com')
+        self.assertEmailSentTo('has_no_snippets@example.com')

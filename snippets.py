@@ -451,25 +451,13 @@ class SendReminderEmail(webapp.RequestHandler):
     """Send an email to everyone who doesn't have a snippet for this week."""
 
     def _send_mail(self, email):
-        # TODO(csilvers): make this a template instead.
-        body = """\
-Just a reminder that weekly snippets are due at 5pm today!  Our
-records show you have not yet entered snippet information for last
-week.  To do so, visit
-   http://weekly-snippets.appspot.com/
-
-If you'd like to stop getting these reminder emails, visit
-   http://weekly-snippets.appspot.com/settings
-and click 'no' under 'Receive reminder emails'.
-
-Regards,
-your friendly neighborhood snippet server
-"""
+        template_values = { }
+        path = os.path.join(os.path.dirname(__file__), 'reminder_email')
         mail.send_mail(sender=('Khan Academy Snippet Server'
                                ' <csilvers+snippets@khanacademy.org>'),
                        to=email,
                        subject='Weekly snippets due today at 5pm',
-                       body=body)
+                       body=template.render(path, template_values))
 
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
@@ -482,30 +470,13 @@ class SendViewEmail(webapp.RequestHandler):
     """Send an email to everyone telling them to look at the week's snippets."""
 
     def _send_mail(self, email, has_snippets):
-        # TODO(csilvers): make this a template instead.
-        body = """\
-The weekly snippets for last week have been posted.  To see them, visit
-   http://weekly-snippets.appspot.com/weekly
-"""
-        if not has_snippets:
-            body += """
-It's not too late to enter in snippets for last week if you haven't
-already!  To do so, visit
-   http://weekly-snippets.appspot.com/
-"""
-        body += """
-If you'd like to stop getting these reminder emails, visit
-   http://weekly-snippets.appspot.com/settings
-and click 'no' under 'Receive reminder emails'.
-
-Enjoy!
-your friendly neighborhood snippet server
-"""
+        template_values = { 'has_snippets': has_snippets }
+        path = os.path.join(os.path.dirname(__file__), 'view_email')
         mail.send_mail(sender=('Khan Academy Snippet Server'
                                ' <csilvers+snippets@khanacademy.org>'),
                        to=email,
                        subject='Weekly snippets are ready!',
-                       body=body)
+                       body=template.render(path, template_values))
 
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
