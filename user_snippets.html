@@ -33,7 +33,7 @@
     </h3>
 
     {% if snippet.private %}<font color="#888888">{% endif %}
-    <blockquote><pre>{{snippet.text|wordwrap:80|urlizetrunc:80}}</pre></blockquote>
+    <pre>{{snippet.text|urlize}}</pre>
     {% if snippet.private %}</font>{% endif %}
   {% endif %}
 
