@@ -316,6 +316,7 @@ class UpdateSnippet(webapp.RequestHandler):
 
         email = self.request.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(email):
+            # TODO(csilvers): return a 403 here instead.
             raise RuntimeError('You do not have permissions to update user'
                                ' snippets for %s' % email)
 
@@ -356,6 +357,7 @@ class Settings(webapp.RequestHandler):
 
         user_email = self.request.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(user_email):
+            # TODO(csilvers): return a 403 here instead.
             raise RuntimeError('You do not have permissions to view user'
                                ' settings for %s' % user_email)
         user = _get_or_create_user(user_email)
@@ -383,6 +385,7 @@ class UpdateSettings(webapp.RequestHandler):
 
         user_email = self.request.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(user_email):
+            # TODO(csilvers): return a 403 here instead.
             raise RuntimeError('You do not have permissions to modify user'
                                ' settings for %s' % user_email)
         user = _get_or_create_user(user_email)
@@ -470,7 +473,7 @@ class SendViewEmail(webapp.RequestHandler):
     """Send an email to everyone telling them to look at the week's snippets."""
 
     def _send_mail(self, email, has_snippets):
-        template_values = { 'has_snippets': has_snippets }
+        template_values = {'has_snippets': has_snippets}
         path = os.path.join(os.path.dirname(__file__), 'view_email')
         mail.send_mail(sender=('Khan Academy Snippet Server'
                                ' <csilvers+snippets@khanacademy.org>'),
