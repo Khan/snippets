@@ -324,6 +324,40 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.assertInSnippet('(No snippet for this week)', response.body, 1)
         self.assertInSnippet('>my old snippet<', response.body, 2)
 
+    def testCategorizeSnippets(self):
+        """Weekly view should sort based on user categories."""
+        # I give the users numeric names to make it easy to see sorting.
+        self.login('2@example.com')
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        url = '/update_settings?category=a+1st'
+        self.request_fetcher.get(url)        
+
+        self.login('3@example.com')
+        url = '/update_snippet?week=02-20-2012&snippet=also+snippet'
+        self.request_fetcher.get(url)
+        url = '/update_settings?category=a+1st'
+        self.request_fetcher.get(url)        
+
+        self.login('1@example.com')
+        url = '/update_snippet?week=02-20-2012&snippet=late+snippet'
+        self.request_fetcher.get(url)
+        url = '/update_settings?category=b+2nd'
+        self.request_fetcher.get(url)        
+
+        self.login('4@example.com')
+        url = '/update_snippet?week=02-20-2012&snippet=late+snippet'
+        self.request_fetcher.get(url)
+
+        # Order should be 4 ((unknown) category), 2 and 3 (a 1st) and
+        # then 1 (b 2nd).
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 4)
+        self.assertInSnippet('4@example.com', response.body, 0)
+        self.assertInSnippet('2@example.com', response.body, 1)
+        self.assertInSnippet('3@example.com', response.body, 2)
+        self.assertInSnippet('1@example.com', response.body, 3)
+
 
 class ShowCorrectWeekTestCase(UserTestBase):
     """Test we show the right snippets for edit/view based on day of week."""
@@ -531,9 +565,32 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertInSnippet('mixed@example.com', response.body, 0)
         self.assertInSnippet('not cautious', response.body, 0)
 
+    def testDomainMatching(self):
+        self.login('close@example.comm')
+        url = '/update_snippet?week=02-13-2012&snippet=whoa+comm&private=True'
+        self.request_fetcher.get(url)
+
+        self.login('close@example.co')
+        url = '/update_snippet?week=02-13-2012&snippet=whoa+co&private=True'
+        self.request_fetcher.get(url)
+
+        self.login('close@my-example.com')
+        url = '/update_snippet?week=02-13-2012&snippet=whoa+my-&private=True'
+        self.request_fetcher.get(url)
+
+        self.login('close@ample.com')
+        url = '/update_snippet?week=02-13-2012&snippet=whoa+ample&private=True'
+        self.request_fetcher.get(url)
+
+        self.login('user@example.com')
+        response = self.request_fetcher.get('/weekly?week=02-13-2012')
+        self.assertNumSnippets(response.body, 8)
+        for i in (0, 1, 2, 3):    # the 4 close@ snippets should sort first
+            self.assertInSnippet('close@', response.body, i)
+            self.assertNotInSnippet('whoa', response.body, i)
 
 
-class SendingEmail(UserTestBase):
+class SendingEmailTestCase(UserTestBase):
     """Test we correctly send cron emails."""
 
     def setUp(self):
