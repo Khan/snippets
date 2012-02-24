@@ -4,7 +4,6 @@ try:
 except ImportError:
     import unittest
 import os
-import re
 import snippets
 import webtest   # may need to do 'pip install webtest'
 
@@ -42,33 +41,40 @@ class SnippetsTestBase(unittest.TestCase):
     def set_is_admin(self):
         self.testbed.setup_env(user_is_admin='1', overwrite=True)
 
-    def assertInSnippet(self, email, text, body):
-        """For snippet-page 'body', assert 'text' is in associated with 'email'.
+    def assertNumSnippets(self, body, expected_count):
+        """Asserts the page 'body' has exactly expected_count snippets in it."""
+        # We annotate the element at the beginning of each snippet with
+        # class="snippet_divider".
+        self.assertEqual(expected_count, body.count('class="snippet_divider"'),
+                         body)
 
-        This works for both user-pages and weekly-pages, which have
-        the form 'email: snippet'.  We use a regexp to make sure that
-        pattern is present, without concerning ourselves with the
-        exact markup.  It takes advantage of the fact that email
-        addresses always have @ in them, and the markup doesn't, so we
-        can use @ to separate snippets.
+    def _ith_snippet(self, body, snippet_number):
+        """For user- and weekly-pages, return the i-th snippet, 0-indexed."""
+        # The +1 is because the 0-th element is stuff before the 1st snippet
+        return body.split('class="snippet_divider"',
+                          snippet_number+2)[snippet_number+1]
+
+    def assertInSnippet(self, text, body, snippet_number):
+        """For snippet-page 'body', assert 'text' is in the i-th snippet.
+
+        This works for both user-pages and weekly-pages -- we figure out
+        the boundaries of the snippets, and check whether the text is
+        in the given snippet.
+
+        If text is a list or tuple, we check each item of text in turn.
 
         Arguments:
+           text: the text to find in the snippet.  If a list or tuple,
+             test each item in the list in turn.
            body: the full html page
-           email: the user's email address, used as id on a snippets page.
-             If email lacks an '@domain', '@example.com' is appended.
-           text: the text that should be present in the user's snippet
+           snippet_number: which snippet on the page to examine.
+             Index starts at 0.
         """
-        if '@' not in email:
-            email += '@example.com'
-        regexp = r'%s[^@]*%s' % (re.escape(email), re.escape(text))
-        self.assertRegexpMatches(body, regexp)
+        self.assertIn(text, self._ith_snippet(body, snippet_number))
 
-    def assertNotInSnippet(self, email, text, body):
-        """For snippet-page 'body', assert 'text' is not present for 'email."""
-        if '@' not in email:
-            email += '@example.com'
-        regexp = r'%s[^@]*%s' % (re.escape(email), re.escape(text))
-        self.assertNotRegexpMatches(body, regexp)
+    def assertNotInSnippet(self, text, body, snippet_number):
+        """For snippet-page 'body', assert 'text' is not in the i-th snippet."""
+        self.assertNotIn(text, self._ith_snippet(body, snippet_number))
 
 
 class UserTestBase(SnippetsTestBase):
@@ -189,43 +195,59 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/')
-        self.assertIn('>my snippet<', response.body)
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('>my snippet<', response.body, 0)
 
     def testSetAndViewInWeeklyMode(self):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/weekly?week=02-20-2012')
-        self.assertIn('>my snippet<', response.body)
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('>my snippet<', response.body, 0)
 
     def testCannotSeeInOtherWeek(self):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/weekly?week=02-13-2012')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('(no snippet this week)', response.body, 0)
         self.assertNotIn('>my snippet<', response.body)
 
     def testViewSnippetsForTwoUsers(self):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
         self.request_fetcher.get(url)
-        self.login('user2@example.com')
+        self.login('other@example.com')
         url = '/update_snippet?week=02-20-2012&snippet=other+snippet'
         self.request_fetcher.get(url)
 
-        # This is done as user2
+        # This is done as other
         response = self.request_fetcher.get('/')
-        self.assertNotInSnippet('user', '>my snippet<', response.body)
-        self.assertInSnippet('user2', '>other snippet<', response.body)
+        self.assertIn('other@example.com', response.body)
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('>other snippet<', response.body, 0)
+        self.assertNotIn('user@example.com', response.body)
+        self.assertNotIn('>my snippet<', response.body)
         response = self.request_fetcher.get('/weekly?week=02-20-2012')
-        self.assertInSnippet('user', '>my snippet<', response.body)
-        self.assertInSnippet('user2', '>other snippet<', response.body)
+        self.assertNumSnippets(response.body, 2)
+        self.assertInSnippet('other@example.com', response.body, 0)
+        self.assertInSnippet('>other snippet<', response.body, 0)
+        self.assertInSnippet('user@example.com', response.body, 1)
+        self.assertInSnippet('>my snippet<', response.body, 1)
 
         # This is done as user
         self.login('user@example.com')
         response = self.request_fetcher.get('/')
-        self.assertInSnippet('user', '>my snippet<', response.body)
-        self.assertNotInSnippet('user2', '>other snippet<', response.body)
+        self.assertIn('user@example.com', response.body)
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('>my snippet<', response.body, 0)
+        self.assertNotIn('other@example.com', response.body)
+        self.assertNotIn('>other snippet<', response.body)
         response = self.request_fetcher.get('/weekly?week=02-20-2012')
-        self.assertInSnippet('user', '>my snippet<', response.body)
-        self.assertInSnippet('user2', '>other snippet<', response.body)
+        self.assertNumSnippets(response.body, 2)
+        self.assertInSnippet('other@example.com', response.body, 0)
+        self.assertInSnippet('>other snippet<', response.body, 0)
+        self.assertInSnippet('user@example.com', response.body, 1)
+        self.assertInSnippet('>my snippet<', response.body, 1)
 
     def testViewSnippetsForTwoWeeks(self):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
@@ -234,35 +256,51 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
         response = self.request_fetcher.get('/')
-        self.assertInSnippet('user', '>my snippet<', response.body)
-        self.assertInSnippet('user', '>my second snippet<', response.body)
+        self.assertNumSnippets(response.body, 2)
+        # Snippets go in reverse chronological order (i.e. newest first)
+        self.assertInSnippet('>my second snippet<', response.body, 0)
+        self.assertInSnippet('>my snippet<', response.body, 1)
 
         response = self.request_fetcher.get('/weekly?week=02-20-2012')
-        self.assertInSnippet('user', '>my snippet<', response.body)
-        self.assertNotInSnippet('user', '>my second snippet<', response.body)
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('user@example.com', response.body, 0)
+        self.assertInSnippet('>my snippet<', response.body, 0)
+        self.assertNotIn('>my second snippet<', response.body)
 
         response = self.request_fetcher.get('/weekly?week=02-27-2012')
-        self.assertNotInSnippet('user', '>my snippet<', response.body)
-        self.assertInSnippet('user', '>my second snippet<', response.body)
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('user@example.com', response.body, 0)
+        self.assertInSnippet('>my second snippet<', response.body, 0)
+        self.assertNotIn('>my snippet<', response.body)
 
         response = self.request_fetcher.get('/weekly?week=02-13-2012')
-        self.assertNotInSnippet('user', '>my snippet<', response.body)
-        self.assertNotInSnippet('user', '>my second snippet<', response.body)
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('(no snippet this week)', response.body, 0)
+        self.assertNotIn('>my snippet<', response.body)
+        self.assertNotIn('>my second snippet<', response.body)
+
 
     def testViewEmptySnippetsInWeekMode(self):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
         self.request_fetcher.get(url)
-        self.login('user2@example.com')
+        self.login('other@example.com')
         url = '/update_snippet?week=02-27-2012&snippet=other+snippet'
         self.request_fetcher.get(url)
 
         response = self.request_fetcher.get('/weekly?week=02-20-2012')
-        self.assertInSnippet('user', '>my snippet<', response.body)
-        self.assertInSnippet('user2', '(no snippet this week)', response.body)
+        self.assertNumSnippets(response.body, 2)
+        # Other-user comes first alphabetically.
+        self.assertInSnippet('other@example.com', response.body, 0)
+        self.assertInSnippet('(no snippet this week)', response.body, 0)
+        self.assertInSnippet('user@example.com', response.body, 1)
+        self.assertInSnippet('>my snippet<', response.body, 1)
 
         response = self.request_fetcher.get('/weekly?week=02-27-2012')
-        self.assertInSnippet('user', '(no snippet this week)', response.body)
-        self.assertInSnippet('user2', '>other snippet<', response.body)
+        self.assertNumSnippets(response.body, 2)
+        self.assertInSnippet('other@example.com', response.body, 0)
+        self.assertInSnippet('>other snippet<', response.body, 0)
+        self.assertInSnippet('user@example.com', response.body, 1)
+        self.assertInSnippet('(no snippet this week)', response.body, 1)
 
     def testViewEmptySnippetsInUserMode(self):
         """Occurs when there's a gap between two snippets."""
@@ -272,10 +310,10 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
         response = self.request_fetcher.get('/')
-        self.assertInSnippet('user', '>my snippet<', response.body)
-        self.assertInSnippet('user', '>(No snippet for this week)<',
-                             response.body)
-        self.assertInSnippet('user', '>my old snippet<', response.body)
+        self.assertNumSnippets(response.body, 3)
+        self.assertInSnippet('>my snippet<', response.body, 0)
+        self.assertInSnippet('(No snippet for this week)', response.body, 1)
+        self.assertInSnippet('>my old snippet<', response.body, 2)
 
 
 '''

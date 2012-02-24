@@ -14,7 +14,8 @@
   {% if editable %}
     <form action="/update_snippet" method="get">
 
-    <h3>Snippets for the week of {{snippet.week|date:"F j, Y"}}
+    <h3 class="snippet_divider">Snippets for the week of
+                                {{snippet.week|date:"F j, Y"}}
         &nbsp; <input type="submit" value="Update">
     </h3>
 
@@ -28,7 +29,9 @@
 
     </form>
   {% else %}
-    <h3>Snippets for the week of {{snippet.week|date:"F j, Y"}}</h3>
+    <h3 class="snippet_divider">Snippets for the week of
+                                {{snippet.week|date:"F j, Y"}}
+    </h3>
 
     {% if snippet.private %}<font color="#888888">{% endif %}
     <pre>{{snippet.text|urlize}}</pre>
