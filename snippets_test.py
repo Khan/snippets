@@ -1,32 +1,293 @@
-import datetime
+# Work under either python2.5 or python2.7
+try:
+    import unittest2 as unittest
+except ImportError:
+    import unittest
 import os
-import urllib
+import re
+import snippets
+import webtest   # may need to do 'pip install webtest'
 
-# Before importing anything from appengine, set the django version we want.
-# Taken from http://stackoverflow.com/questions/4994913/app-engine-default-django-version-change
-from google.appengine.dist import use_library
-use_library('django', '1.2')
-
-from google.appengine.api import mail
 from google.appengine.api import users
-from google.appengine.ext import webapp
-from google.appengine.ext.webapp import template
-from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext import db
+from google.appengine.ext import testbed
 
-"""Snippets server.
 
-This server runs the Khan Academy weekly snippets.  Users can
-add a summary of what they did in the last week, and browse
-other people's snippets.  They will also get weekly mail with
-everyone's snippets in them.
+"""Tests for the snippets server.
+
+This tests the functionality found at weekly-snippets.appspot.com.
+
+c.f. http://code.google.com/appengine/docs/python/tools/localunittesting.html
 """
 
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 
 
+class SnippetsTestBase(unittest.TestCase):
+    def setUp(self):
+        self.testbed = testbed.Testbed()
+        self.testbed.activate()
+        self.testbed.init_datastore_v3_stub()
+        self.testbed.init_user_stub()
+        self.request_fetcher = webtest.TestApp(snippets.application)
+
+    def tearDown(self):
+        self.testbed.deactivate()
+
+    def login(self, email):
+        self.testbed.setup_env(user_email=email, overwrite=True)
+        self.testbed.setup_env(user_id=email, overwrite=True)
+        self.testbed.setup_env(user_is_admin='0', overwrite=True)
+
+    def set_is_admin(self):
+        self.testbed.setup_env(user_is_admin='1', overwrite=True)
+
+    def assertInSnippet(self, email, text, body):
+        """For snippet-page 'body', assert 'text' is in associated with 'email'.
+
+        This works for both user-pages and weekly-pages, which have
+        the form 'email: snippet'.  We use a regexp to make sure that
+        pattern is present, without concerning ourselves with the
+        exact markup.  It takes advantage of the fact that email
+        addresses always have @ in them, and the markup doesn't, so we
+        can use @ to separate snippets.
+
+        Arguments:
+           body: the full html page
+           email: the user's email address, used as id on a snippets page.
+             If email lacks an '@domain', '@example.com' is appended.
+           text: the text that should be present in the user's snippet
+        """
+        if '@' not in email:
+            email += '@example.com'
+        regexp = r'%s[^@]*%s' % (re.escape(email), re.escape(text))
+        self.assertRegexpMatches(body, regexp)
+
+    def assertNotInSnippet(self, email, text, body):
+        """For snippet-page 'body', assert 'text' is not present for 'email."""
+        if '@' not in email:
+            email += '@example.com'
+        regexp = r'%s[^@]*%s' % (re.escape(email), re.escape(text))
+        self.assertNotRegexpMatches(body, regexp)
+
+
+class UserTestBase(SnippetsTestBase):
+    """The common base: someone who is logged in as user@example.com."""
+    def setUp(self):
+        SnippetsTestBase.setUp(self)
+        self.login('user@example.com')
+
+
+class LoginRequiredTestCase(SnippetsTestBase):
+    def testLoginRequiredForUserView(self):
+        url = '/'
+        response = self.request_fetcher.get(url)
+        self.assertIn('must be logged in', response.body)
+
+        self.login('user@example.com')
+        response = self.request_fetcher.get(url)
+        self.assertNotIn('must be logged in', response.body)
+
+    def testLoginRequiredForWeeklyView(self):
+        url = '/weekly'
+        response = self.request_fetcher.get(url)
+        self.assertIn('must be logged in', response.body)
+
+        self.login('user@example.com')
+        response = self.request_fetcher.get(url)
+        self.assertNotIn('must be logged in', response.body)
+
+    def testLoginRequiredForSettingsView(self):
+        url = '/settings'
+        response = self.request_fetcher.get(url)
+        self.assertIn('must be logged in', response.body)
+
+        self.login('user@example.com')
+        response = self.request_fetcher.get(url)
+        self.assertNotIn('must be logged in', response.body)
+
+    def testLoginRequiredToUpdateSnippet(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        response = self.request_fetcher.get(url)
+        self.assertIn('must be logged in', response.body)
+
+        self.login('user@example.com')
+        response = self.request_fetcher.get(url)
+        self.assertNotIn('must be logged in', response.body)
+        
+    def testLoginRequiredToUpdateSettings(self):
+        url = '/update_settings'
+        response = self.request_fetcher.get(url)
+        self.assertIn('must be logged in', response.body)
+
+        self.login('user@example.com')
+        response = self.request_fetcher.get(url)
+        self.assertNotIn('must be logged in', response.body)
+
+
+class AccessTestCase(UserTestBase):
+    """Tests that you can't modify someone who is not yourself."""
+
+    def testCanViewOtherSnippets(self):
+        url = '/?u=notuser@example.com'
+        # Raises an error if we don't get a 200 response.
+        self.request_fetcher.get(url)
+
+    def testCanViewWeeklyPage(self):
+        """u is ignored for /weekly, but included for completeness."""
+        url = '/weekly?u=notuser@example.com'
+        self.request_fetcher.get(url)
+
+    def testCannotEditOtherSnippets(self):
+        url = ('/update_snippet?week=02-20-2012&snippet=my+snippet'
+               '&u=notuser@example.com')
+        # Raises an error if we don't get a 500 response (meaning no perm).
+        self.request_fetcher.get(url, status=500)
+
+    def testCannotViewOtherSettings(self):
+        url = '/settings?u=notuser@example.com'
+        self.request_fetcher.get(url, status=500)
+
+    def testCannotEditOtherSettings(self):
+        url = '/update_settings?u=notuser@example.com'
+        self.request_fetcher.get(url, status=500)
+        
+    def testCanEditOwnSnippets(self):
+        url = ('/update_snippet?week=02-20-2012&snippet=my+snippet'
+               '&u=user@example.com')
+        self.request_fetcher.get(url)
+
+    def testCanViewOwnSettings(self):
+        url = '/settings?u=user@example.com'
+        self.request_fetcher.get(url)
+
+    def testCanEditOwnSettings(self):
+        url = '/update_settings?u=user@example.com'
+        self.request_fetcher.get(url)
+        
+    def testCanEditOtherSnippetsAsAdmin(self):
+        self.set_is_admin()
+        url = ('/update_snippet?week=02-20-2012&snippet=my+snippet'
+               '&u=notuser@example.com')
+        self.request_fetcher.get(url)
+
+    def testCanViewOtherSettingsAsAdmin(self):
+        self.set_is_admin()
+        url = '/settings?u=notuser@example.com'
+        self.request_fetcher.get(url)
+
+    def testCanEditOtherSettingsAsAdmin(self):
+        self.set_is_admin()
+        url = '/update_settings?u=notuser@example.com'
+        self.request_fetcher.get(url)
+
+
+class SetAndViewSnippetsTestCase(UserTestBase):
+    """Set some snippets, then make sure they're viewable."""
+
+    def testSetAndViewInUserMode(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/')
+        self.assertIn('>my snippet<', response.body)
+
+    def testSetAndViewInWeeklyMode(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertIn('>my snippet<', response.body)
+
+    def testCannotSeeInOtherWeek(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-13-2012')
+        self.assertNotIn('>my snippet<', response.body)
+
+    def testViewSnippetsForTwoUsers(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        self.login('user2@example.com')
+        url = '/update_snippet?week=02-20-2012&snippet=other+snippet'
+        self.request_fetcher.get(url)
+
+        # This is done as user2
+        response = self.request_fetcher.get('/')
+        self.assertNotInSnippet('user', '>my snippet<', response.body)
+        self.assertInSnippet('user2', '>other snippet<', response.body)
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertInSnippet('user', '>my snippet<', response.body)
+        self.assertInSnippet('user2', '>other snippet<', response.body)
+
+        # This is done as user
+        self.login('user@example.com')
+        response = self.request_fetcher.get('/')
+        self.assertInSnippet('user', '>my snippet<', response.body)
+        self.assertNotInSnippet('user2', '>other snippet<', response.body)
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertInSnippet('user', '>my snippet<', response.body)
+        self.assertInSnippet('user2', '>other snippet<', response.body)
+
+    def testViewSnippetsForTwoWeeks(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        url = '/update_snippet?week=02-27-2012&snippet=my+second+snippet'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/')
+        self.assertInSnippet('user', '>my snippet<', response.body)
+        self.assertInSnippet('user', '>my second snippet<', response.body)
+
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertInSnippet('user', '>my snippet<', response.body)
+        self.assertNotInSnippet('user', '>my second snippet<', response.body)
+
+        response = self.request_fetcher.get('/weekly?week=02-27-2012')
+        self.assertNotInSnippet('user', '>my snippet<', response.body)
+        self.assertInSnippet('user', '>my second snippet<', response.body)
+
+        response = self.request_fetcher.get('/weekly?week=02-13-2012')
+        self.assertNotInSnippet('user', '>my snippet<', response.body)
+        self.assertNotInSnippet('user', '>my second snippet<', response.body)
+
+    def testViewEmptySnippetsInWeekMode(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        self.login('user2@example.com')
+        url = '/update_snippet?week=02-27-2012&snippet=other+snippet'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertInSnippet('user', '>my snippet<', response.body)
+        self.assertInSnippet('user2', '(no snippet this week)', response.body)
+
+        response = self.request_fetcher.get('/weekly?week=02-27-2012')
+        self.assertInSnippet('user', '(no snippet this week)', response.body)
+        self.assertInSnippet('user2', '>other snippet<', response.body)
+
+    def testViewEmptySnippetsInUserMode(self):
+        """Occurs when there's a gap between two snippets."""
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        url = '/update_snippet?week=02-06-2012&snippet=my+old+snippet'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/')
+        self.assertInSnippet('user', '>my snippet<', response.body)
+        self.assertInSnippet('user', '>(No snippet for this week)<',
+                             response.body)
+        self.assertInSnippet('user', '>my old snippet<', response.body)
+
+
+'''
 # TODO(csilvers): allow mocking in a different day
 _TODAY = datetime.datetime.now().date()
+
+
+port = os.environ['SERVER_PORT']
+if port and port != '80':
+    HOST_NAME = '%s:%s' % (os.environ['SERVER_NAME'], port)
+else:
+    HOST_NAME = os.environ['SERVER_NAME']
 
 
 # Note: I use email address rather than a UserProperty to uniquely
@@ -527,3 +788,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+'''
