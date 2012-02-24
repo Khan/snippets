@@ -25,7 +25,7 @@ everyone's snippets in them.
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 
 
-# TODO(csilvers): allow mocking in a different day
+# This allows mocking in a different day, for testing.
 _TODAY = datetime.datetime.now().date()
 
 
