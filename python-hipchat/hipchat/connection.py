@@ -8,7 +8,7 @@ if sys.version_info[0] == 2 and sys.version_info[1] < 6:
 else:
     import json
 
-import hipchat.config
+token = ''
 
 def partial(func, *args, **keywords):
     def newfunc(*fargs, **fkeywords):
@@ -22,7 +22,7 @@ def partial(func, *args, **keywords):
 
 
 def call_hipchat(cls, ReturnType, url, data=True, **kw):
-    auth = [('format', 'json'), ('auth_token', hipchat.config.token)]
+    auth = [('format', 'json'), ('auth_token', token)]
     if not data:
         auth.extend(kw.items())
     req = Request(url=url + '?%s' % urlencode(auth))
