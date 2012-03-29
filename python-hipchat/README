@@ -1,0 +1,162 @@
+ABOUT
+
+python-hipchat is a Python interfacet to the HipChat JSON api. It
+wraps the various routes supported by the API in Python classes,
+though the mapping isn't perfect. It is also a work in
+progress. Through python, it also exposes command line utilities that
+will dump either json output to stdout or print human readable results
+as a poor mans FFI into other languages, such as Perl.
+
+INSTALLATION
+
+is pretty easy. At the command line as root:
+
+# python setup.py install
+
+DEVELOPMENT
+
+is also pretty easy, either using your virtualenv or as root, run the
+following:
+
+$ python setup.py development
+
+This will create shortcuts to the various command line utilities and
+expose the hipchat top level module for testing and integration into
+other projects.
+
+EXAMPLES
+
+The full documentation of the HipChat API can be found here:
+
+https://www.hipchat.com/docs/api
+
+The following examples show how the python interface maps to the
+published API.
+
+The first step is to initialise the config with the appropriate
+hipchat token. This is stored in an ini style file, handled by
+ConfigObj
+
+In [12]: import hipchat.config
+
+In [13]: hipchat.config.init_cfg('hipchat.cfg')
+
+In [17]: hipchat.config.token
+Out[17]: 'fa28d24b4ee537f0ffa51d545a9bf7'
+
+In [18]: cat 'hipchat.cfg'
+token = fa28d24b4ee537f0ffa51d545a9bf7
+proxy_server = proxy.example.org
+proxy_type = http
+
+No worries though, by the time you see this, i'll have revoked this
+token.
+
+Then we can perform actions on rooms:
+
+In [19]: Room.list()
+Out[19]:
+[<hipchat.room.Room object at 0x2e5c990>,
+ <hipchat.room.Room object at 0x2e78d50>,
+ <hipchat.room.Room object at 0x2e78d90>,
+ <hipchat.room.Room object at 0x2e78dd0>]
+
+In [22]: map(str, Room.list())
+Out[22]:
+['{"room": {"topic": "Discuss open Hackathon projects and request QA
+testing", "owner_user_id": 5257, "room_id": 13010, "name": "2011
+Hackathon!", "last_active": 1303918853}}',
+ '{"room": {"topic": "", "owner_user_id": 5237, "room_id": 3721,
+ "name": "All Testers (only)", "last_active": 1304534734}}',
+ '{"room": {"topic": "or is it Testing all things?", "owner_user_id":
+ 5237, "room_id": 2444, "name": "All Things Testing", "last_active":
+ 1303239018}}',
+ '{"room": {"topic": "Analytics", "owner_user_id": 2038, "room_id":
+ 14208, "name": "Analytics", "last_active": 1299629441}}']
+
+In [23]: map(dir, Room.list())
+Out[23]:
+[['__class__',
+  '__delattr__',
+  '__dict__',
+  '__doc__',
+  '__format__',
+  '__getattribute__',
+  '__hash__',
+  '__init__',
+  '__module__',
+  '__new__',
+  '__reduce__',
+  '__reduce_ex__',
+  '__repr__',
+  '__setattr__',
+  '__sizeof__',
+  '__str__',
+  '__subclasshook__',
+  '__weakref__',
+  'history',
+  'jsono',
+  'last_active',
+  'list',
+  'message',
+  'name',
+  'owner_user_id',
+  'room_id',
+  'show',
+  'sort',
+  'topic'],
+*SNIP*
+]
+
+So you can see that the various properties are preserved. Still, type
+safety isn't a true guarantee, since list and show return different
+results.
+
+In [5]: str(Room.show(room_id=13010))
+Out[5]: '{"room": {"name": "2011 Hackathon!", "last_active":
+1303918853, "created": 1297912387, "topic": "Discuss open Hackathon
+projects and request QA testing", "participants": [], "room_id":
+13010, "owner_user_id": 5257}}'
+
+Sometimes we need to wrap around the silly notion of reserved keywords
+(like we care about making compiler authors' lives easy...)
+
+In [6]: x = {'room_id': 13010, 'from': 'Python', 'message': 'Python
+Rocks'}
+
+In [7]: Room.message(**x)
+Out[7]: <hipchat.room.MessageSentStatus object at 0x31ec690>
+
+In [8]: str(Room.message(**x))
+Out[8]: '{"status": "sent"}'
+
+COMMAND LINE
+
+There are a bunch of command line tools to wrap the python, and they
+will all return appropriate error codes or dump json to stdout. They
+are prefixed with hipchat, so tab completion is your friend. If your
+shell does not offer this functionality, then read the fine source
+code to discover all the tools.
+
+The commands are as follows:
+hipchat-add-user
+hipchat-del-user
+hipchat-disable-user
+hipchat-enable-user
+hipchat-list-users
+hipchat-set-user-admin
+hipchat-set-user-name
+hipchat-set-user-password
+hipchat-set-user-timezone
+hipchat-set-user-title
+hipchat-show-user
+hipchat-update-user
+
+Run them with no parameters to find out what they do
+
+
+PROXY
+
+We can use a proxy server in case your command and control server is
+behind some firewall. As seen above, just set the appropriate settings
+in hipchat.cfg

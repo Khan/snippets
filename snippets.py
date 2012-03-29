@@ -29,6 +29,9 @@ __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 _TODAY = datetime.datetime.now().date()
 
 
+# Have the cron jobs send to HipChat in addition to email?
+_SEND_TO_HIPCHAT = True
+
 # Note: I use email address rather than a UserProperty to uniquely
 # identify a user.  As per
 # http://code.google.com/appengine/docs/python/users/userobjects.html
@@ -462,11 +465,20 @@ class SendReminderEmail(webapp.RequestHandler):
                        subject='Weekly snippets due today at 5pm',
                        body=template.render(path, template_values))
 
+    def _send_to_hipchat(self):
+        """Sends a note to the main hipchat room."""
+        import hipchat
+        msg = ('Reminder: Weekly snippets due today at 5pm.'
+               ' http://weekly-snippets.appspot.com/')
+        hipchat.send_to_hipchat_room('Khan Academy', msg)
+
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             if not has_snippet:
                 self._send_mail(user_email)
+        if _SEND_TO_HIPCHAT:
+            self._send_to_hipchat()
 
 
 class SendViewEmail(webapp.RequestHandler):
@@ -481,10 +493,19 @@ class SendViewEmail(webapp.RequestHandler):
                        subject='Weekly snippets are ready!',
                        body=template.render(path, template_values))
 
+    def _send_to_hipchat(self, email):
+        """Sends a note to the main hipchat room."""
+        import hipchat
+        msg = ('Weekly snippets are ready!'
+               ' http://weekly-snippets.appspot.com/weekly')
+        hipchat.send_to_hipchat_room('Khan Academy', msg)
+
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             self._send_mail(user_email, has_snippet)
+        if _SEND_TO_HIPCHAT:
+            self._send_to_hipchat()
 
 
 application = webapp.WSGIApplication([('/', UserPage),
