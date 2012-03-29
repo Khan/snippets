@@ -1,6 +1,8 @@
 import hipchat.connection
 import hipchat.room
 
+from google.appengine.ext import db
+
 """Snippets server -> HipChat integration.
 
 At Khan Academy we use HipChat for messaging.  This provides HipChat
@@ -23,14 +25,18 @@ class HipchatToken(db.Model):
 def send_to_hipchat_room(room_name, message):
     """For this to work, the token must be stored manually in the datastore."""
     q = HipchatToken.all()
-    hipchat.config.token = q.get()
+    hipchat.connection.token = q.get()
     room_name = 'ReviewBoard: csilvers' #!!
     for room in hipchat.room.Room.list():
         if room.name == room_name:
-            hipchat.room.Room.message(room_id=room.room_id,
-                                      from='snippet-server',
-                                      notify=1,
-                                      message=message)
+            # Have to go through hoops since 'from' is reserved in python.
+            msg_dict = {
+                'room_id': room.room_id,
+                'from': 'snippet-server',
+                'notify': 1,
+                'message': message,
+            }
+            hipchat.room.Room.message(**msg_dict)
             return
     raise RuntimeError('Unable to send message to hipchat room %s' % room_name)
 
