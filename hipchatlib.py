@@ -1,4 +1,4 @@
-import hipchat.connection
+import hipchat.config
 import hipchat.room
 
 from google.appengine.ext import db
@@ -10,43 +10,28 @@ At Khan Academy we use HipChat for messaging.  This provides HipChat
 integration with the snippet server.
 
 Talking to the Khan HipChat 'rooms' requires a token.  The admin must
-set this token manually in the snippets datastore, by visiting.  There is no API
-for setting it.  For KA, the HipChat token lives in secrets.py.
+set this token by creating a file called 'hipchat.cfg' in this
+directory.  It should look like this:
+--- vvv contents below vvv---
+token = 01234567890abcdef
+--- ^^^ contents above ^^^---
+except instead of '01234567890abcdef', it should have the token value.
+For Khan Academy, this is stored in secrets.py.
 
-Here are the instructions for setting the token:
+Note that there are no quotes, and there must be spaces around the =,
+or this won't work.
 
-1) In your browser, go to /admin/test_send_to_hipchat
-   (This will fail -- you'll get an error of some sort.  But it
-   initializes the token in the db.)
-2) Now go to admin-console.appspot.com (or /_ah/admin in the dev_appserver).
-   Click on 'Datastore Viewer'.  Select the entity kind 'HipchatToken',
-   and click 'List entities'.  There should be only one.  Click on it
-   (the key name).
-3) Under 'token (string)' put in the hipchat token (from secrets.py).
+Do not commit hipchat.cfg into git!  It's a secret.
 """
 
-class HipchatToken(db.Model):
-    """Where we store the private key used to communicate with hipchat.
-
-    There is no API for setting the token -- you must go through the
-    appengine admin console to do that.
-    """
-    token = db.StringProperty(default='')
+def hipchat_init():
+    """Initializes hipchat, returns true if it worked ok."""
+    hipchat.config.init_cfg('hipchat.cfg')
+    return bool(hipchat.config.token)
 
 
 def send_to_hipchat_room(room_name, message):
-    """For this to work, the token must be stored manually in the datastore."""
-    q = HipchatToken.all()
-    token_record = q.get()
-    if token_record:
-        hipchat.connection.token = token_record.token
-    else:
-        # The admin console doesn't let you create a new entity if
-        # there are no entities at all of that type.  So create the
-        # entity if it doesn't already exist, then the user can edit
-        # it via the console.
-        db.put(HipchatToken())
-
+    """For this to work, the hipchat token must be in hipchat.cfg."""
     for room in hipchat.room.Room.list():
         if room.name == room_name:
             # Have to go through hoops since 'from' is reserved in python.

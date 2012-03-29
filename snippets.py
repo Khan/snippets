@@ -30,6 +30,8 @@ _SEND_TO_HIPCHAT = True
 
 if _SEND_TO_HIPCHAT:
     import hipchatlib
+    if not hipchatlib.hipchat_init():
+        _SEND_TO_HIPCHAT = False
 
 
 # This allows mocking in a different day, for testing.
