@@ -25,12 +25,16 @@ everyone's snippets in them.
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 
 
+# Have the cron jobs send to HipChat in addition to email?
+_SEND_TO_HIPCHAT = True
+
+if _SEND_TO_HIPCHAT:
+    import hipchatlib
+
+
 # This allows mocking in a different day, for testing.
 _TODAY = datetime.datetime.now().date()
 
-
-# Have the cron jobs send to HipChat in addition to email?
-_SEND_TO_HIPCHAT = True
 
 # Note: I use email address rather than a UserProperty to uniquely
 # identify a user.  As per
@@ -467,10 +471,9 @@ class SendReminderEmail(webapp.RequestHandler):
 
     def _send_to_hipchat(self):
         """Sends a note to the main hipchat room."""
-        import hipchat
         msg = ('Reminder: Weekly snippets due today at 5pm.'
                ' http://weekly-snippets.appspot.com/')
-        hipchat.send_to_hipchat_room('Khan Academy', msg)
+        hipchatlib.send_to_hipchat_room('Khan Academy', msg)
 
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
@@ -495,10 +498,9 @@ class SendViewEmail(webapp.RequestHandler):
 
     def _send_to_hipchat(self, email):
         """Sends a note to the main hipchat room."""
-        import hipchat
         msg = ('Weekly snippets are ready!'
                ' http://weekly-snippets.appspot.com/weekly')
-        hipchat.send_to_hipchat_room('Khan Academy', msg)
+        hipchatlib.send_to_hipchat_room('Khan Academy', msg)
 
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)

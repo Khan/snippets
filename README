@@ -11,4 +11,4 @@ sending them to interested users.
 
 3) TODO(csilvers): A way of registering interest in snippets (perhaps
 only from certain people?)  For now, all snippets are always sent to
-'all'.
+'all'.  Best if it supports regexps.
