@@ -519,6 +519,8 @@ application = webapp.WSGIApplication([('/', UserPage),
                                        SendReminderEmail),
                                       ('/admin/send_view_email',
                                        SendViewEmail),
+                                      ('/admin/test_send_to_hipchat',
+                                       hipchatlib.TestSendToHipchat),
                                       ],
                                       debug=True)
 
