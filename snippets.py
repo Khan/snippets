@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 import urllib
 
@@ -32,6 +33,7 @@ if _SEND_TO_HIPCHAT:
     import hipchatlib
     if not hipchatlib.hipchat_init():
         _SEND_TO_HIPCHAT = False
+        logging.error('Unable to initialize HipChat; not sending msgs there')
 
 
 # This allows mocking in a different day, for testing.
