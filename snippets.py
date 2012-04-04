@@ -500,7 +500,7 @@ class SendViewEmail(webapp.RequestHandler):
                        subject='Weekly snippets are ready!',
                        body=template.render(path, template_values))
 
-    def _send_to_hipchat(self, email):
+    def _send_to_hipchat(self):
         """Sends a note to the main hipchat room."""
         msg = ('Weekly snippets are ready!'
                ' http://weekly-snippets.appspot.com/weekly')
