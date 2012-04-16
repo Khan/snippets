@@ -6,6 +6,7 @@ except ImportError:
 import datetime
 import os
 import snippets
+import time
 import webtest   # may need to do 'pip install webtest'
 
 from google.appengine.api import users
@@ -596,6 +597,13 @@ class SendingEmailTestCase(UserTestBase):
         UserTestBase.setUp(self)
         self.testbed.init_mail_stub()
         self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
+        # Also make sure we suppress sending to hipchat for tests.
+        snippets._SEND_TO_HIPCHAT = False
+        # The email-senders sleep 2 seconds between sends for quota
+        # reasons.  We don't want that for most tests, so we suppress
+        # it.  The quota test will redefine time.sleep itself.
+        self.sleep_fn = time.sleep
+        time.sleep = lambda sec: sec
 
         # For our mail tests, we set up a db with a few users, some of
         # whom have snippets for this week ('this week' being 13 Feb
@@ -614,6 +622,10 @@ class SendingEmailTestCase(UserTestBase):
         self.request_fetcher.get('/settings')
 
         self.login('user@example.com')        # back to the normal user
+
+    def tearDown(self):
+        UserTestBase.tearDown(self)
+        time.sleep = self.sleep_fn
         
     def assertEmailSentTo(self, email):
         r = self.mail_stub.get_sent_messages(to=email)
@@ -689,3 +701,31 @@ class SendingEmailTestCase(UserTestBase):
         self.assertEmailNotSentTo('does_not_have_snippet@example.com')
         self.assertEmailSentTo('has_many_snippets@example.com')
         self.assertEmailSentTo('has_no_snippets@example.com')
+
+    def testEmailQuotas(self):
+        """Test that we don't send more than 32 emails a minute."""
+        self.sleep_seconds_this_minute = 0
+        self.calls_this_minute = 0
+        self.max_calls_per_minute = 0
+        def count_calls_per_minute(sleep_seconds):
+            self.calls_this_minute += 1
+            self.sleep_seconds_this_minute += sleep_seconds
+            # Update every time through so we count the last minute too.
+            self.max_calls_per_minute = max(self.max_calls_per_minute,
+                                            self.calls_this_minute)
+            if self.sleep_seconds_this_minute > 60:  # on to the next minute
+                self.calls_this_minute = 0
+                self.sleep_seconds_this_minute %= 60
+
+        time.sleep = lambda sec: count_calls_per_minute(sec) 
+
+        # We'll do 500 users.  Rather than go through the request
+        # API, we modify the db directly; it's much faster.
+        users = [snippets.User(email='snippets%d@example.com' % i)
+                 for i in xrange(500)]
+        db.put(users)
+
+        self.request_fetcher.get('/admin/send_view_email')
+        # https://developers.google.com/appengine/docs/quotas#Mail
+        self.assertTrue(self.max_calls_per_minute <= 32,
+                        '%d <= %d' % (self.max_calls_per_minute, 32))

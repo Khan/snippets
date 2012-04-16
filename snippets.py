@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+import time
 import urllib
 
 # Before importing anything from appengine, set the django version we want.
@@ -57,6 +58,7 @@ class User(db.Model):
     email = db.StringProperty(required=True)           # The key to this record
     category = db.StringProperty(default='(unknown)')  # used to group snippets
     wants_email = db.BooleanProperty(default=True)     # get nag emails?
+    # TODO(csilvers): add a concept of alternate email addresses
     # TODO(csilvers): make a ListProperty instead.
     wants_to_view = db.TextProperty(default='all')     # comma-separated list
 
@@ -461,17 +463,27 @@ def _get_email_to_current_snippet_map(today):
     return retval
 
 
+def _send_snippets_mail(to, subject, template_path, template_values):
+    mail.send_mail(sender=('Khan Academy Snippet Server'
+                           ' <csilvers+snippets@khanacademy.org>'),
+                   to=to,
+                   subject=subject,
+                   body=template.render(template_path, template_values))
+    # Appengine has a quota of 32 emails per minute:
+    #    https://developers.google.com/appengine/docs/quotas#Mail
+    # We pause 2 seconds between each email to make sure we
+    # don't go over that.
+    time.sleep(2)
+
+
 class SendReminderEmail(webapp.RequestHandler):
     """Send an email to everyone who doesn't have a snippet for this week."""
 
     def _send_mail(self, email):
         template_values = { }
         path = os.path.join(os.path.dirname(__file__), 'reminder_email')
-        mail.send_mail(sender=('Khan Academy Snippet Server'
-                               ' <csilvers+snippets@khanacademy.org>'),
-                       to=email,
-                       subject='Weekly snippets due today at 5pm',
-                       body=template.render(path, template_values))
+        _send_snippets_mail(email, 'Weekly snippets due today at 5pm',
+                            path, template_values)
 
     def _send_to_hipchat(self):
         """Sends a note to the main hipchat room."""
@@ -484,6 +496,11 @@ class SendReminderEmail(webapp.RequestHandler):
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             if not has_snippet:
                 self._send_mail(user_email)
+                # Appengine has a quota of 32 emails per minute:
+                #    https://developers.google.com/appengine/docs/quotas#Mail
+                # We pause 2 seconds between each email to make sure we
+                # don't go over that.
+                time.sleep(2)
         if _SEND_TO_HIPCHAT:
             self._send_to_hipchat()
 
@@ -494,11 +511,8 @@ class SendViewEmail(webapp.RequestHandler):
     def _send_mail(self, email, has_snippets):
         template_values = {'has_snippets': has_snippets}
         path = os.path.join(os.path.dirname(__file__), 'view_email')
-        mail.send_mail(sender=('Khan Academy Snippet Server'
-                               ' <csilvers+snippets@khanacademy.org>'),
-                       to=email,
-                       subject='Weekly snippets are ready!',
-                       body=template.render(path, template_values))
+        _send_snippets_mail(email, 'Weekly snippets are ready!',
+                            path, template_values)
 
     def _send_to_hipchat(self):
         """Sends a note to the main hipchat room."""
@@ -510,6 +524,11 @@ class SendViewEmail(webapp.RequestHandler):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             self._send_mail(user_email, has_snippet)
+            # Appengine has a quota of 32 emails per minute:
+            #    https://developers.google.com/appengine/docs/quotas#Mail
+            # We pause 2 seconds between each email to make sure we
+            # don't go over that.
+            time.sleep(2)
         if _SEND_TO_HIPCHAT:
             self._send_to_hipchat()
 
