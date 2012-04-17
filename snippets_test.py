@@ -5,6 +5,7 @@ except ImportError:
     import unittest
 import datetime
 import os
+import re
 import snippets
 import time
 import webtest   # may need to do 'pip install webtest'
@@ -90,7 +91,7 @@ class SnippetsTestBase(unittest.TestCase):
 class UserTestBase(SnippetsTestBase):
     """The most common base: someone who is logged in as user@example.com."""
     def setUp(self):
-        SnippetsTestBase.setUp(self)
+        super(UserTestBase, self).setUp()
         self.login('user@example.com')
 
 
@@ -197,6 +198,31 @@ class AccessTestCase(UserTestBase):
         url = '/update_settings?u=notuser@example.com'
         self.request_fetcher.get(url)
 
+
+class NewUserTestCase(UserTestBase):
+    """Test the workflow for registering as a new user."""
+
+    def testNewUserLogin(self):
+        response = self.request_fetcher.get('/')
+        self.assertIn('<title>New User</title>', response.body)
+
+    def testNewUserContinueUrl(self):
+        """After verifying settings, we should go back to snippet-entry."""
+        response = self.request_fetcher.get('/')
+        m = re.search(r'<A HREF="(/settings[^"]*)">', response.body)
+        continue_url = m.group(1)
+
+        settings_response = self.request_fetcher.get(continue_url)
+        self.assertIn('name="redirect_to" value="snippet_entry"',
+                      settings_response.body)
+
+        # Now kinda-simulate clicking on the submit button
+        done_response = self.request_fetcher.get(
+            '/update_settings?u=user@example.com&redirect_to=snippet_entry')
+        if done_response.status_int in (301, 302, 303, 304):
+            done_response = done_response.follow()
+        self.assertIn('Snippets for user@example.com', done_response.body)
+        
 
 class SetAndViewSnippetsTestCase(UserTestBase):
     """Set some snippets, then make sure they're viewable."""
@@ -362,6 +388,12 @@ class SetAndViewSnippetsTestCase(UserTestBase):
 class ShowCorrectWeekTestCase(UserTestBase):
     """Test we show the right snippets for edit/view based on day of week."""
 
+    def setUp(self):
+        super(ShowCorrectWeekTestCase, self).setUp()
+        # Register the user so snippet-fetching works.
+        url = '/update_settings?category=dummy'
+        self.request_fetcher.get(url)
+
     def testMonday(self):
         # For adding new snippets, you have until Wed to add for last week.
         snippets._TODAY = datetime.date(2012, 2, 20)
@@ -418,13 +450,16 @@ class NosnippetGapFillingTestCase(UserTestBase):
     """Test we show correct text when folks miss a week for snippets."""
 
     def testNoSnippets(self):
+        # If nobody is registered, the user-db will be empty.
+        response = self.request_fetcher.get('/weekly')
+        self.assertNumSnippets(response.body, 0)
+
+        url = '/update_settings?category=dummy'   # register the user
+        self.request_fetcher.get(url)
+
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 1)
         self.assertInSnippet('(No snippet for this week)', response.body, 0)
-
-        # If nobody entered a snippet, the user-db will be empty.
-        response = self.request_fetcher.get('/weekly')
-        self.assertNumSnippets(response.body, 0)
 
     def testOneSnippetInDistantPast(self):
         url = '/update_snippet?week=02-21-2011&snippet=old+snippet'
@@ -487,7 +522,7 @@ class PrivateSnippetTestCase(UserTestBase):
     """Tests that we properly restrict viewing of private snippets."""
 
     def setUp(self):
-        UserTestBase.setUp(self)
+        super(PrivateSnippetTestCase, self).setUp()
         # Set up a user with some private and some not-private snippets,
         # another user with only private, and another with only public.
         self.login('private@example.com')
@@ -594,7 +629,7 @@ class SendingEmailTestCase(UserTestBase):
     """Test we correctly send cron emails."""
 
     def setUp(self):
-        UserTestBase.setUp(self)
+        super(SendingEmailTestCase, self).setUp()
         self.testbed.init_mail_stub()
         self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
         # Also make sure we suppress sending to hipchat for tests.
@@ -622,11 +657,11 @@ class SendingEmailTestCase(UserTestBase):
         self.request_fetcher.get('/settings')
 
         self.login('user@example.com')        # back to the normal user
-
+        
     def tearDown(self):
         UserTestBase.tearDown(self)
         time.sleep = self.sleep_fn
-        
+
     def assertEmailSentTo(self, email):
         r = self.mail_stub.get_sent_messages(to=email)
         self.assertEqual(1, len(r), r)

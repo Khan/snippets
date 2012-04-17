@@ -223,6 +223,16 @@ class UserPage(webapp.RequestHandler):
 
         user_email = self.request.get('u', _current_user_email())
 
+        if not _get_user(user_email):
+            template_values = {
+                'logout_url': users.create_logout_url('/'),
+                'username': user_email,
+                'domain': user_email.split('@')[-1],
+                }
+            path = os.path.join(os.path.dirname(__file__), 'new_user.html')
+            self.response.out.write(template.render(path, template_values))    
+            return
+
         snippets_q = Snippet.all()
         snippets_q.filter('email = ', user_email)
         snippets_q.order('week')            # note this puts oldest snippet first
@@ -381,6 +391,7 @@ class Settings(webapp.RequestHandler):
             'username': user.email,
             'view_week': _existingsnippet_monday(_TODAY),
             'user': user,
+            'redirect_to': self.request.get('redirect_to', ''),
             # We could get this from user, but we want to replace
             # commas with newlines for printing.
             'wants_to_view': user.wants_to_view.replace(',', '\n'),
@@ -418,8 +429,12 @@ class UpdateSettings(webapp.RequestHandler):
         user.wants_to_view = wants_to_view
         db.put(user)
 
-        self.redirect("/settings?msg=Changes+saved&u=%s"
-                      % urllib.quote(user_email))
+        redirect_to = self.request.get('redirect_to')
+        if redirect_to == 'snippet_entry':   # true for new_user.html
+            self.redirect('/?u=%s' % urllib.quote(user_email))
+        else:
+            self.redirect("/settings?msg=Changes+saved&u=%s"
+                          % urllib.quote(user_email))
 
 
 # The following two classes are called by cron.
