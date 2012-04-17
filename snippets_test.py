@@ -4,13 +4,11 @@ try:
 except ImportError:
     import unittest
 import datetime
-import os
 import re
 import snippets
 import time
 import webtest   # may need to do 'pip install webtest'
 
-from google.appengine.api import users
 from google.appengine.ext import db
 from google.appengine.ext import testbed
 
