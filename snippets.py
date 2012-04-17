@@ -77,7 +77,7 @@ def _login_page(request, response):
         'login_url': users.create_login_url(request.uri),
     }
     path = os.path.join(os.path.dirname(__file__), 'login.html')
-    response.out.write(template.render(path, template_values))    
+    response.out.write(template.render(path, template_values))
 
 
 def _current_user_email():
@@ -123,7 +123,7 @@ def _newsnippet_monday(today):
     if today_weekday <= 2:            # wed or before
         end_monday = today - datetime.timedelta(today_weekday + 7)
     else:
-        end_monday = today - datetime.timedelta(today_weekday)        
+        end_monday = today - datetime.timedelta(today_weekday)
     return end_monday
 
 
@@ -230,7 +230,7 @@ class UserPage(webapp.RequestHandler):
                 'domain': user_email.split('@')[-1],
                 }
             path = os.path.join(os.path.dirname(__file__), 'new_user.html')
-            self.response.out.write(template.render(path, template_values))    
+            self.response.out.write(template.render(path, template_values))
             return
 
         snippets_q = Snippet.all()
@@ -253,12 +253,12 @@ class UserPage(webapp.RequestHandler):
             'snippets': snippets,
             }
         path = os.path.join(os.path.dirname(__file__), 'user_snippets.html')
-        self.response.out.write(template.render(path, template_values))    
+        self.response.out.write(template.render(path, template_values))
 
 
 class SummaryPage(webapp.RequestHandler):
     """Show all the snippets for a single week."""
-    
+
     def get(self):
         if not users.get_current_user():
             return _login_page(self.request, self.response)
@@ -322,7 +322,7 @@ class SummaryPage(webapp.RequestHandler):
             'categories_and_snippets': categories_and_snippets,
             }
         path = os.path.join(os.path.dirname(__file__), 'weekly_snippets.html')
-        self.response.out.write(template.render(path, template_values))    
+        self.response.out.write(template.render(path, template_values))
 
 
 # TODO(csilvers): would like to move to an ajax model where each
@@ -511,11 +511,7 @@ class SendReminderEmail(webapp.RequestHandler):
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             if not has_snippet:
                 self._send_mail(user_email)
-                # Appengine has a quota of 32 emails per minute:
-                #    https://developers.google.com/appengine/docs/quotas#Mail
-                # We pause 2 seconds between each email to make sure we
-                # don't go over that.
-                time.sleep(2)
+
         if _SEND_TO_HIPCHAT:
             self._send_to_hipchat()
 
@@ -539,11 +535,7 @@ class SendViewEmail(webapp.RequestHandler):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             self._send_mail(user_email, has_snippet)
-            # Appengine has a quota of 32 emails per minute:
-            #    https://developers.google.com/appengine/docs/quotas#Mail
-            # We pause 2 seconds between each email to make sure we
-            # don't go over that.
-            time.sleep(2)
+
         if _SEND_TO_HIPCHAT:
             self._send_to_hipchat()
 

@@ -131,7 +131,7 @@ class LoginRequiredTestCase(SnippetsTestBase):
         self.login('user@example.com')
         response = self.request_fetcher.get(url)
         self.assertNotIn('must be logged in', response.body)
-        
+
     def testLoginRequiredToUpdateSettings(self):
         url = '/update_settings'
         response = self.request_fetcher.get(url)
@@ -168,7 +168,7 @@ class AccessTestCase(UserTestBase):
     def testCannotEditOtherSettings(self):
         url = '/update_settings?u=notuser@example.com'
         self.request_fetcher.get(url, status=500)
-        
+
     def testCanEditOwnSnippets(self):
         url = ('/update_snippet?week=02-20-2012&snippet=my+snippet'
                '&u=user@example.com')
@@ -181,7 +181,7 @@ class AccessTestCase(UserTestBase):
     def testCanEditOwnSettings(self):
         url = '/update_settings?u=user@example.com'
         self.request_fetcher.get(url)
-        
+
     def testCanEditOtherSnippetsAsAdmin(self):
         self.set_is_admin()
         url = ('/update_snippet?week=02-20-2012&snippet=my+snippet'
@@ -222,7 +222,7 @@ class NewUserTestCase(UserTestBase):
         if done_response.status_int in (301, 302, 303, 304):
             done_response = done_response.follow()
         self.assertIn('Snippets for user@example.com', done_response.body)
-        
+
 
 class SetAndViewSnippetsTestCase(UserTestBase):
     """Set some snippets, then make sure they're viewable."""
@@ -357,19 +357,19 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
         self.request_fetcher.get(url)
         url = '/update_settings?category=a+1st'
-        self.request_fetcher.get(url)        
+        self.request_fetcher.get(url)
 
         self.login('3@example.com')
         url = '/update_snippet?week=02-20-2012&snippet=also+snippet'
         self.request_fetcher.get(url)
         url = '/update_settings?category=a+1st'
-        self.request_fetcher.get(url)        
+        self.request_fetcher.get(url)
 
         self.login('1@example.com')
         url = '/update_snippet?week=02-20-2012&snippet=late+snippet'
         self.request_fetcher.get(url)
         url = '/update_settings?category=b+2nd'
-        self.request_fetcher.get(url)        
+        self.request_fetcher.get(url)
 
         self.login('4@example.com')
         url = '/update_snippet?week=02-20-2012&snippet=late+snippet'
@@ -573,7 +573,7 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertInSnippet('public@example.com', response.body, 3)
         self.assertNotInSnippet('font color', response.body, 3)
         self.assertInSnippet('see me', response.body, 3)
-        
+
         self.login('random@some_other_domain.com')
         response = self.request_fetcher.get('/weekly?week=02-13-2012')
         self.assertNumSnippets(response.body, 4)
@@ -657,7 +657,7 @@ class SendingEmailTestCase(UserTestBase):
         self.request_fetcher.get('/settings')
 
         self.login('user@example.com')        # back to the normal user
-        
+
     def tearDown(self):
         UserTestBase.tearDown(self)
         time.sleep = self.sleep_fn
@@ -720,7 +720,7 @@ class SendingEmailTestCase(UserTestBase):
         # The control group :-)
         self.login('has_no_snippets@example.com')
         self.request_fetcher.get('/update_settings?reminder_email=yes')
-        
+
         self.request_fetcher.get('/admin/send_reminder_email')
         self.assertEmailNotSentTo('does_not_have_snippet@example.com')
         self.assertEmailSentTo('has_no_snippets@example.com')
@@ -739,12 +739,14 @@ class SendingEmailTestCase(UserTestBase):
 
     def testEmailQuotas(self):
         """Test that we don't send more than 32 emails a minute."""
+        self.total_sleep_seconds = 0
         self.sleep_seconds_this_minute = 0
         self.calls_this_minute = 0
         self.max_calls_per_minute = 0
         def count_calls_per_minute(sleep_seconds):
             self.calls_this_minute += 1
             self.sleep_seconds_this_minute += sleep_seconds
+            self.total_sleep_seconds += sleep_seconds
             # Update every time through so we count the last minute too.
             self.max_calls_per_minute = max(self.max_calls_per_minute,
                                             self.calls_this_minute)
@@ -752,7 +754,7 @@ class SendingEmailTestCase(UserTestBase):
                 self.calls_this_minute = 0
                 self.sleep_seconds_this_minute %= 60
 
-        time.sleep = lambda sec: count_calls_per_minute(sec) 
+        time.sleep = lambda sec: count_calls_per_minute(sec)
 
         # We'll do 500 users.  Rather than go through the request
         # API, we modify the db directly; it's much faster.
@@ -764,3 +766,8 @@ class SendingEmailTestCase(UserTestBase):
         # https://developers.google.com/appengine/docs/quotas#Mail
         self.assertTrue(self.max_calls_per_minute <= 32,
                         '%d <= %d' % (self.max_calls_per_minute, 32))
+        # Make sure we're not too slow either: say 1/2.5 seconds on average.
+        self.assertTrue(self.total_sleep_seconds <= len(users) * 2.5,
+                        '%d <= %d' % (self.total_sleep_seconds,
+                                      len(users) * 2.5))
+
