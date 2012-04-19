@@ -225,9 +225,9 @@ class UserPage(webapp.RequestHandler):
 
         if not _get_user(user_email):
             template_values = {
+                'login_url': users.create_login_url(request.uri),
                 'logout_url': users.create_logout_url('/'),
                 'username': user_email,
-                'domain': user_email.split('@')[-1],
                 }
             path = os.path.join(os.path.dirname(__file__), 'new_user.html')
             self.response.out.write(template.render(path, template_values))
