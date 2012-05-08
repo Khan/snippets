@@ -64,8 +64,8 @@ class User(db.Model):
 
 class Snippet(db.Model):
     """Every snippet is identified by the monday of the week it goes with."""
-    email = db.StringProperty(required=True) # with week, the key to this record
-    week = db.DateProperty(required=True)    # the monday of the week
+    email = db.StringProperty(required=True)  # week+email: key to this record
+    week = db.DateProperty(required=True)     # the monday of the week
     text = db.TextProperty(default='(No snippet for this week)')
     private = db.BooleanProperty(default=False)
 
@@ -98,7 +98,7 @@ def _get_or_create_user(email):
         pass
     elif not _logged_in_user_has_permission_for(email):
         raise IndexError('User "%s" not found; did you specify'
-                         ' the full email address?'% email)
+                         ' the full email address?' % email)
     else:
         user = User(email=email)
         db.put(user)
@@ -143,7 +143,7 @@ def _existingsnippet_monday(today):
 
 
 def _logged_in_user_has_permission_for(email):
-    """Return True if the current logged-in appengine user can edit this user."""
+    """True if the current logged-in appengine user can edit this user."""
     return (email == _current_user_email()) or users.is_current_user_admin()
 
 
@@ -234,7 +234,7 @@ class UserPage(webapp.RequestHandler):
 
         snippets_q = Snippet.all()
         snippets_q.filter('email = ', user_email)
-        snippets_q.order('week')            # note this puts oldest snippet first
+        snippets_q.order('week')            # this puts oldest snippet first
         snippets = snippets_q.fetch(1000)   # good for many years...
 
         if not _can_view_private_snippets(_current_user_email(), user_email):
@@ -360,7 +360,8 @@ class UpdateSnippet(webapp.RequestHandler):
             snippet.private = private
         else:
             # add the snippet to the db
-            snippet = Snippet(email=email, week=week, text=text, private=private)
+            snippet = Snippet(email=email, week=week,
+                              text=text, private=private)
         db.put(snippet)
 
         # When adding a snippet, make sure we create a user record for
@@ -371,7 +372,7 @@ class UpdateSnippet(webapp.RequestHandler):
 
 
 class Settings(webapp.RequestHandler):
-    """Page to display a user's settings (from class User), for modification."""
+    """Page to display a user's settings (from class User) for modification."""
 
     def get(self):
         if not users.get_current_user():
@@ -494,7 +495,7 @@ class SendReminderEmail(webapp.RequestHandler):
     """Send an email to everyone who doesn't have a snippet for this week."""
 
     def _send_mail(self, email):
-        template_values = { }
+        template_values = {}
         path = os.path.join(os.path.dirname(__file__), 'reminder_email')
         _send_snippets_mail(email, 'Weekly snippets due today at 5pm',
                             path, template_values)
@@ -517,7 +518,7 @@ class SendReminderEmail(webapp.RequestHandler):
 
 
 class SendViewEmail(webapp.RequestHandler):
-    """Send an email to everyone telling them to look at the week's snippets."""
+    """Send an email to everyone to look at the week's snippets."""
 
     def _send_mail(self, email, has_snippets):
         template_values = {'has_snippets': has_snippets}
