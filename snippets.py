@@ -502,8 +502,9 @@ class SendReminderEmail(webapp.RequestHandler):
 
     def _send_to_hipchat(self):
         """Sends a note to the main hipchat room."""
-        msg = ('Reminder: Weekly snippets due today at 5pm.'
-               ' http://weekly-snippets.appspot.com/')
+        msg = ('Reminder: Weekly snippets due today at 5pm. '
+               '<a href="http://weekly-snippets.appspot.com/">'
+               'http://weekly-snippets.appspot.com/</a>')
         hipchatlib.send_to_hipchat_room('Khan Academy', msg)
 
     def get(self):
@@ -527,8 +528,9 @@ class SendViewEmail(webapp.RequestHandler):
 
     def _send_to_hipchat(self):
         """Sends a note to the main hipchat room."""
-        msg = ('Weekly snippets are ready!'
-               ' http://weekly-snippets.appspot.com/weekly')
+        msg = ('Weekly snippets are ready! '
+               '<a href="http://weekly-snippets.appspot.com/weekly">'
+               'http://weekly-snippets.appspot.com/weekly</a>')
         hipchatlib.send_to_hipchat_room('Khan Academy', msg)
 
     def get(self):
