@@ -1,17 +1,4 @@
-# Work under either python2.5 or python2.7
-try:
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-import datetime
-import re
-import snippets
-import time
-import webtest   # may need to do 'pip install webtest'
-
-from google.appengine.ext import db
-from google.appengine.ext import testbed
-
+#!/usr/bin/env python
 
 """Tests for the snippets server.
 
@@ -21,6 +8,30 @@ c.f. http://code.google.com/appengine/docs/python/tools/localunittesting.html
 """
 
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
+
+
+import datetime
+import os
+import re
+import sys
+import time
+try:   # Work under either python2.5 or python2.7
+    import unittest2 as unittest
+except ImportError:
+    import unittest
+
+# Update sys.path so it can find these.  We just need to add
+# 'google_appengine', but we add all of $PATH to be easy.  This
+# assumes the google_appengine directory is on the path.
+sys.path.extend(os.environ['PATH'].split(':'))
+import dev_appserver
+dev_appserver.fix_sys_path()
+
+from google.appengine.ext import db
+from google.appengine.ext import testbed
+import webtest   # may need to do 'pip install webtest'
+
+import snippets
 
 
 _TEST_TODAY = datetime.date(2012, 2, 23)
@@ -33,7 +44,7 @@ class SnippetsTestBase(unittest.TestCase):
         self.testbed.init_datastore_v3_stub()
         self.testbed.init_user_stub()
         self.request_fetcher = webtest.TestApp(snippets.application)
-        snippets._TODAY = _TEST_TODAY
+        snippets._TODAY_FN = lambda: _TEST_TODAY
 
     def tearDown(self):
         self.testbed.deactivate()
@@ -47,7 +58,7 @@ class SnippetsTestBase(unittest.TestCase):
         self.testbed.setup_env(user_is_admin='1', overwrite=True)
 
     def assertNumSnippets(self, body, expected_count):
-        """Asserts the page 'body' has exactly expected_count snippets in it."""
+        """Assert the page 'body' has exactly expected_count snippets in it."""
         # We annotate the div at the beginning of each snippet with
         # class="snippet".
         self.assertEqual(expected_count, body.count('class="snippet"'), body)
@@ -58,7 +69,7 @@ class SnippetsTestBase(unittest.TestCase):
         # If we get an IndexError, it means there aren't that many snippets.
         try:
             return body.split('class="snippet"',
-                              snippet_number+2)[snippet_number+1]
+                              snippet_number + 2)[snippet_number + 1]
         except IndexError:
             raise IndexError('Has fewer than %d snippets:\n%s'
                              % (snippet_number, body))
@@ -82,7 +93,7 @@ class SnippetsTestBase(unittest.TestCase):
         self.assertIn(text, self._ith_snippet(body, snippet_number))
 
     def assertNotInSnippet(self, text, body, snippet_number):
-        """For snippet-page 'body', assert 'text' is not in the i-th snippet."""
+        """For snippet-page 'body', assert 'text' is not in the ith snippet."""
         self.assertNotIn(text, self._ith_snippet(body, snippet_number))
 
 
@@ -394,7 +405,7 @@ class ShowCorrectWeekTestCase(UserTestBase):
 
     def testMonday(self):
         # For adding new snippets, you have until Wed to add for last week.
-        snippets._TODAY = datetime.date(2012, 2, 20)
+        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 20)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 13, 2012', response.body, 0)
         # For *viewing*'s snippets, we always show last week's snippets.
@@ -402,42 +413,42 @@ class ShowCorrectWeekTestCase(UserTestBase):
         self.assertIn('February 13, 2012', response.body)
 
     def testTuesday(self):
-        snippets._TODAY = datetime.date(2012, 2, 21)
+        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 21)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 13, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testWednesday(self):
-        snippets._TODAY = datetime.date(2012, 2, 22)
+        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 22)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 13, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testThursday(self):
-        snippets._TODAY = datetime.date(2012, 2, 23)
+        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 23)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testFriday(self):
-        snippets._TODAY = datetime.date(2012, 2, 24)
+        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 24)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testSaturday(self):
-        snippets._TODAY = datetime.date(2012, 2, 25)
+        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 25)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testSunday(self):
-        snippets._TODAY = datetime.date(2012, 2, 26)
+        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 26)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
@@ -693,7 +704,6 @@ class SendingEmailTestCase(UserTestBase):
         self.assertIn('Snippet Server', r[0].sender)
         self.assertEqual('Weekly snippets due today at 5pm', r[0].subject)
 
-
     def testSendViewEmail(self):
         self.request_fetcher.get('/admin/send_view_email')
         self.assertEmailSentTo('has_snippet@example.com')
@@ -741,6 +751,7 @@ class SendingEmailTestCase(UserTestBase):
         self.sleep_seconds_this_minute = 0
         self.calls_this_minute = 0
         self.max_calls_per_minute = 0
+
         def count_calls_per_minute(sleep_seconds):
             self.calls_this_minute += 1
             self.sleep_seconds_this_minute += sleep_seconds
@@ -768,4 +779,8 @@ class SendingEmailTestCase(UserTestBase):
         self.assertTrue(self.total_sleep_seconds <= len(users) * 2.5,
                         '%d <= %d' % (self.total_sleep_seconds,
                                       len(users) * 2.5))
+
+
+if __name__ == '__main__':
+    unittest.main()
 

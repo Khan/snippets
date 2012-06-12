@@ -38,7 +38,7 @@ if _SEND_TO_HIPCHAT:
 
 
 # This allows mocking in a different day, for testing.
-_TODAY = datetime.datetime.now().date()
+_TODAY_FN = datetime.datetime.now().date
 
 
 # Note: I use email address rather than a UserProperty to uniquely
@@ -239,7 +239,7 @@ class UserPage(webapp.RequestHandler):
 
         if not _can_view_private_snippets(_current_user_email(), user_email):
             snippets = [snippet for snippet in snippets if not snippet.private]
-        snippets = fill_in_missing_snippets(snippets, user_email, _TODAY)
+        snippets = fill_in_missing_snippets(snippets, user_email, _TODAY_FN())
         snippets.reverse()                  # get to newest snippet first
 
         template_values = {
@@ -247,7 +247,7 @@ class UserPage(webapp.RequestHandler):
             'message': self.request.get('msg'),
             'username': user_email,
             'domain': user_email.split('@')[-1],
-            'view_week': _existingsnippet_monday(_TODAY),
+            'view_week': _existingsnippet_monday(_TODAY_FN()),
             'editable': _logged_in_user_has_permission_for(user_email),
             'snippets': snippets,
             }
@@ -266,7 +266,7 @@ class SummaryPage(webapp.RequestHandler):
         if week_string:
             week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
         else:
-            week = _existingsnippet_monday(_TODAY)
+            week = _existingsnippet_monday(_TODAY_FN())
 
         snippets_q = Snippet.all()
         snippets_q.filter('week = ', week)
@@ -389,7 +389,7 @@ class Settings(webapp.RequestHandler):
             'logout_url': users.create_logout_url('/'),
             'message': self.request.get('msg'),
             'username': user.email,
-            'view_week': _existingsnippet_monday(_TODAY),
+            'view_week': _existingsnippet_monday(_TODAY_FN()),
             'user': user,
             'redirect_to': self.request.get('redirect_to', ''),
             # We could get this from user, but we want to replace
@@ -508,7 +508,7 @@ class SendReminderEmail(webapp.RequestHandler):
         hipchatlib.send_to_hipchat_room('Khan Academy', msg)
 
     def get(self):
-        email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
+        email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             if not has_snippet:
                 self._send_mail(user_email)
@@ -534,7 +534,7 @@ class SendViewEmail(webapp.RequestHandler):
         hipchatlib.send_to_hipchat_room('Khan Academy', msg)
 
     def get(self):
-        email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY)
+        email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             self._send_mail(user_email, has_snippet)
 
