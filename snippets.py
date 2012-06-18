@@ -512,6 +512,10 @@ class SendReminderEmail(webapp.RequestHandler):
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             if not has_snippet:
                 self._send_mail(user_email)
+                logging.debug('sent reminder email to %s' % user_email)
+            else:
+                logging.debug('did not send reminder email to %s: '
+                              'has a snippet already' % user_email)
 
         if _SEND_TO_HIPCHAT:
             self._send_to_hipchat()
@@ -537,6 +541,7 @@ class SendViewEmail(webapp.RequestHandler):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
         for (user_email, has_snippet) in email_to_has_snippet.iteritems():
             self._send_mail(user_email, has_snippet)
+            logging.debug('sent "view" email to %s' % user_email)
 
         if _SEND_TO_HIPCHAT:
             self._send_to_hipchat()
