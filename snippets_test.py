@@ -34,7 +34,7 @@ import webtest   # may need to do 'pip install webtest'
 import snippets
 
 
-_TEST_TODAY = datetime.date(2012, 2, 23)
+_TEST_TODAY = datetime.datetime(2012, 2, 23)
 
 
 class SnippetsTestBase(unittest.TestCase):
@@ -405,7 +405,7 @@ class ShowCorrectWeekTestCase(UserTestBase):
 
     def testMonday(self):
         # For adding new snippets, you have until Wed to add for last week.
-        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 20)
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 13, 2012', response.body, 0)
         # For *viewing*'s snippets, we always show last week's snippets.
@@ -413,42 +413,42 @@ class ShowCorrectWeekTestCase(UserTestBase):
         self.assertIn('February 13, 2012', response.body)
 
     def testTuesday(self):
-        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 21)
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 21)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 13, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testWednesday(self):
-        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 22)
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 22)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 13, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testThursday(self):
-        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 23)
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 23)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testFriday(self):
-        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 24)
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 24)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testSaturday(self):
-        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 25)
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 25)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testSunday(self):
-        snippets._TODAY_FN = lambda: datetime.date(2012, 2, 26)
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 26)
         response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
@@ -649,6 +649,10 @@ class SendingEmailTestCase(UserTestBase):
         self.sleep_fn = time.sleep
         time.sleep = lambda sec: sec
 
+        # We send out mail on Sunday nights and Monday mornings, so
+        # we'll set 'today' to be Sunday right around midnight.
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 19, 23, 50, 0)
+
         # For our mail tests, we set up a db with a few users, some of
         # whom have snippets for this week ('this week' being 13 Feb
         # 2012), some of whom don't.
@@ -656,11 +660,11 @@ class SendingEmailTestCase(UserTestBase):
         self.request_fetcher.get('/update_snippet?week=02-13-2012&snippet=s1')
 
         self.login('has_many_snippets@example.com')
-        self.request_fetcher.get('/update_snippet?week=02-06-2012&snippet=s2')
+        self.request_fetcher.get('/update_snippet?week=01-30-2012&snippet=s2')
         self.request_fetcher.get('/update_snippet?week=02-13-2012&snippet=s3')
 
         self.login('does_not_have_snippet@example.com')
-        self.request_fetcher.get('/update_snippet?week=02-06-2012&snippet=s4')
+        self.request_fetcher.get('/update_snippet?week=01-30-2012&snippet=s4')
 
         self.login('has_no_snippets@example.com')
         self.request_fetcher.get('/settings')

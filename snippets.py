@@ -38,7 +38,7 @@ if _SEND_TO_HIPCHAT:
 
 
 # This allows mocking in a different day, for testing.
-_TODAY_FN = datetime.datetime.now().date
+_TODAY_FN = datetime.datetime.now
 
 
 # Note: I use email address rather than a UserProperty to uniquely
@@ -113,33 +113,44 @@ def _newsnippet_monday(today):
     start putting in snippets for this week.
 
     Arguments:
-       today: the current day, used to calculate the best monday.
+       today: the current day as a datetime.datetime object, used to
+          calculate the best monday.
 
     Returns:
-       The Monday that we are accepting new snippets for, by default.
+       The Monday that we are accepting new snippets for, by default,
+       as a datetime.date (not datetime.datetime) object.
     """
     today_weekday = today.weekday()   # monday == 0, sunday == 6
     if today_weekday <= 2:            # wed or before
         end_monday = today - datetime.timedelta(today_weekday + 7)
     else:
         end_monday = today - datetime.timedelta(today_weekday)
-    return end_monday
+    return end_monday.date()
 
 
 def _existingsnippet_monday(today):
     """Return a datetime.date object: the monday for existing snippets.
 
-    The rule is that we show the snippets for the previous week.  That
-    means we subtract to the current monday, then subtract 7 more days
-    to get the snippets for the previous week.
+    The rule is that we show the snippets for the previous week.  We
+    declare a week starts on Monday...well, actually, Sunday at 11pm.
+    The reason for this is that (for quota reasons) we sent out a
+    reminder email Sunday at 11:50pm rather than Monday morning, and
+    we want that to count as 'Monday' anyway...
 
     Arguments:
-       today: the current day, used to calculate the best monday.
+       today: the current day as a datetime.datetime object, used to
+          calculate the best monday.
 
     Returns:
-       The Monday that we are accepting new snippets for, by default.
+       The Monday that we are accepting new snippets for, by default,
+       as a datetime.date (not datetime.datetime) object.
     """
-    return today - datetime.timedelta(today.weekday() + 7)
+    today_weekday = today.weekday()   # monday == 0, sunday == 6
+    if today_weekday == 6 and today.hour >= 23:
+        end_monday = today - datetime.timedelta(today_weekday)
+    else:
+        end_monday = today - datetime.timedelta(today_weekday + 7)
+    return end_monday.date()
 
 
 def _logged_in_user_has_permission_for(email):
@@ -183,7 +194,7 @@ def fill_in_missing_snippets(existing_snippets, user_email, today):
          snippet from that user (at least, it's where we start filling
          from).
        user_email: the email of the person whose snippets it is.
-       today: a datetime.date object representing the current day.
+       today: a datetime.datetime object representing the current day.
          We fill up to then.  If today is wed or before, then we
          fill up to the previous week.  If it's thurs or after, we
          fill up to the current week.
@@ -451,7 +462,7 @@ def _get_email_to_current_snippet_map(today):
     be included in either list.
 
     Arguments:
-      today: a datetime.date object representing the
+      today: a datetime.datetime object representing the
         'current' day.  We use the normal algorithm to determine what is
         the most recent snippet-week for this day.
 
