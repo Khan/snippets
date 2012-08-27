@@ -102,6 +102,7 @@ def _get_or_create_user(email):
     else:
         user = User(email=email)
         db.put(user)
+        db.get(user.key())    # ensure db consistency for HRD
     return user
 
 
@@ -374,6 +375,7 @@ class UpdateSnippet(webapp.RequestHandler):
             snippet = Snippet(email=email, week=week,
                               text=text, private=private)
         db.put(snippet)
+        db.get(snippet.key())  # ensure db consistency for HRD
 
         # When adding a snippet, make sure we create a user record for
         # that email as well, if it doesn't already exist.
@@ -439,6 +441,7 @@ class UpdateSettings(webapp.RequestHandler):
         user.wants_email = wants_email
         user.wants_to_view = wants_to_view
         db.put(user)
+        db.get(user.key())  # ensure db consistency for HRD
 
         redirect_to = self.request.get('redirect_to')
         if redirect_to == 'snippet_entry':   # true for new_user.html
