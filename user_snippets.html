@@ -15,7 +15,8 @@
     <form action="/update_snippet" method="get">
 
     <h3>Snippets for the week of {{snippet.week|date:"F j, Y"}}
-        &nbsp; <input type="submit" value="Save">
+        &nbsp; <input type="submit" value="Save" class="save-button">
+        &nbsp; <button class="undo-button">undo</button>
     </h3>
 
     <input type="hidden" name="week" value="{{snippet.week|date:"m-d-Y"}}">
@@ -38,4 +39,6 @@
 {% endfor %}
 
 </body>
+<script src="javascript/jquery-1.8.2.js"></script>
+<script src="javascript/snippets.js"></script>
 </html>

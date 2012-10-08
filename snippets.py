@@ -344,16 +344,7 @@ class SummaryPage(webapp.RequestHandler):
 # snippet in the db.
 
 class UpdateSnippet(webapp.RequestHandler):
-    def get(self):
-        if not users.get_current_user():
-            return _login_page(self.request, self.response)
-
-        email = self.request.get('u', _current_user_email())
-        if not _logged_in_user_has_permission_for(email):
-            # TODO(csilvers): return a 403 here instead.
-            raise RuntimeError('You do not have permissions to update user'
-                               ' snippets for %s' % email)
-
+    def update_snippet(self, email):
         week_string = self.request.get('week')
         week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
         assert week.weekday() == 0, 'passed-in date must be a Monday'
@@ -380,9 +371,54 @@ class UpdateSnippet(webapp.RequestHandler):
         # When adding a snippet, make sure we create a user record for
         # that email as well, if it doesn't already exist.
         _get_or_create_user(email)
+        self.response.set_status(200)
 
+    def post(self):
+        """handle ajax updates via POST
+        
+        in particular, return status via json rather than redirects and
+        hard exceptions. This isn't actually RESTy, it's just status
+        codes and json.
+        """
+        # TODO(marcos): consider using PUT?
+
+        self.response.headers['Content-Type'] = 'application/json'
+
+        if not users.get_current_user():
+            # 403s are the catch-all 'please log in error' here
+            self.response.set_status(403)
+            self.response.out.write('{"status": 403, '
+                                    '"message": "not logged in"}')
+            return
+
+        email = self.request.get('u', _current_user_email())
+
+        if not _logged_in_user_has_permission_for(email):
+            # TODO(marcos): present these messages to the ajax client
+            self.response.set_status(403)
+            error = 'You do not have permissions to update user' \
+                ' snippets for %s' % email
+            self.response.out.write('{"status": 403, '
+                                    '"message": "%s"}' % error)
+            return
+
+        self.update_snippet(email)
+        self.response.out.write('{"status": 200, "message": "ok"}')
+
+    def get(self):
+        if not users.get_current_user():
+            return _login_page(self.request, self.response)
+
+        email = self.request.get('u', _current_user_email())
+        if not _logged_in_user_has_permission_for(email):
+            # TODO(csilvers): return a 403 here instead.
+            raise RuntimeError('You do not have permissions to update user'
+                               ' snippets for %s' % email)
+        
+        self.update_snippet(email)
+
+        email = self.request.get('u', _current_user_email())
         self.redirect("/?msg=Snippet+saved&u=%s" % urllib.quote(email))
-
 
 class Settings(webapp.RequestHandler):
     """Page to display a user's settings (from class User) for modification."""

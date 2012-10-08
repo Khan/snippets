@@ -5,6 +5,7 @@
 This tests the functionality found at weekly-snippets.appspot.com.
 
 c.f. http://code.google.com/appengine/docs/python/tools/localunittesting.html
+c.f. http://webtest.pythonpaste.org/en/latest/index.html
 """
 
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
@@ -102,6 +103,70 @@ class UserTestBase(SnippetsTestBase):
     def setUp(self):
         super(UserTestBase, self).setUp()
         self.login('user@example.com')
+
+
+class PostTestCase(SnippetsTestBase):
+    """test the correct output from the server when POSTing"""
+
+    def testPostSnippet(self):
+        self.login('user@example.com')
+        url = '/update_snippet'
+        params = {
+            'week': '02-20-2012', 
+            'snippet': 'my inspired snippet'
+        }
+        response = self.request_fetcher.post(url, params, status=200)
+        self.assertIn('{"status": 200, "message": "ok"}', response)
+
+    def testPostSnippetAsOtherPerson(self):
+        self.login('user@example.com')
+        url = '/update_snippet'
+        params = {
+            'week': '02-20-2012', 
+            'snippet': 'my fallacious snippet',
+            'u': 'joeuser@example.com'
+        }
+        response = self.request_fetcher.post(url, params, status=403)
+        self.assertIn('"status": 403', response)
+        self.assertIn('joeuser@example.com', response)
+
+    def testPostSnippetNotLoggedIn(self):
+        url = '/update_snippet'
+        params = {
+            'week': '02-20-2012', 
+            'snippet': 'my fallacious snippet',
+            'u': 'user@example.com'
+        }
+        response = self.request_fetcher.post(url, params, status=403)
+        self.assertIn('"status": 403', response)
+        self.assertIn('"message": "not logged in"', response)
+
+    def testPostSnippetIsolation(self):
+        # updating a single snippet via POST should not affect other snippets
+        self.login('user@example.com')
+
+        # create three snippets
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        url = '/update_snippet?week=02-27-2012&snippet=my+second+snippet'
+        self.request_fetcher.get(url)
+        url = '/update_snippet?week=03-05-2012&snippet=my+third+snippet'
+        self.request_fetcher.get(url)
+
+        # update only middle snippet
+        url = '/update_snippet'
+        params = {
+            'week': '02-27-2012',
+            'snippet': 'updated second snippet'
+        }
+        self.request_fetcher.post(url, params, status=200)
+
+        # make sure only the second snippet changed
+        response = self.request_fetcher.get('/')
+        self.assertInSnippet('>my third snippet<', response.body, 0)
+        self.assertInSnippet('>updated second snippet<', response.body, 1)
+        self.assertNotInSnippet('>my second snippet<', response.body, 1)
+        self.assertInSnippet('>my snippet<', response.body, 2)
 
 
 class LoginRequiredTestCase(SnippetsTestBase):
