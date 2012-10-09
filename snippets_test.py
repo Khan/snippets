@@ -73,7 +73,7 @@ class SnippetsTestBase(unittest.TestCase):
                               snippet_number + 2)[snippet_number + 1]
         except IndexError:
             raise IndexError('Has fewer than %d snippets:\n%s'
-                             % (snippet_number, body))
+                             % ((snippet_number + 1), body))
 
     def assertInSnippet(self, text, body, snippet_number):
         """For snippet-page 'body', assert 'text' is in the i-th snippet.
@@ -457,6 +457,23 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.assertInSnippet('2@example.com', response.body, 1)
         self.assertInSnippet('3@example.com', response.body, 2)
         self.assertInSnippet('1@example.com', response.body, 3)
+
+    def testViewSnippetAfterAUserIsDeleted(self):
+        """When a user is deleted, their snippet should still show up."""
+        self.login('2@example.com')
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        url = '/update_settings?category=a+1st'
+        self.request_fetcher.get(url)
+
+        # Now delete user 2
+        u = snippets.User.all().filter('email =', '2@example.com').get()
+        u.delete()
+
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('2@example.com', response.body, 0)
+        self.assertTrue('(unknown)' in response.body)
 
 
 class ShowCorrectWeekTestCase(UserTestBase):

@@ -304,7 +304,8 @@ class SummaryPage(webapp.RequestHandler):
                                            snippet.email)):
                 category = email_to_category.get(snippet.email, '(unknown)')
                 snippets_by_category.setdefault(category, []).append(snippet)
-                del email_to_category[snippet.email]
+                if snippet.email in email_to_category:
+                    del email_to_category[snippet.email]
 
         # Add in empty snippets for the people who didn't have any.
         for (email, category) in email_to_category.iteritems():
@@ -419,6 +420,7 @@ class UpdateSnippet(webapp.RequestHandler):
 
         email = self.request.get('u', _current_user_email())
         self.redirect("/?msg=Snippet+saved&u=%s" % urllib.quote(email))
+
 
 class Settings(webapp.RequestHandler):
     """Page to display a user's settings (from class User) for modification."""
