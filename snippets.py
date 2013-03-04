@@ -70,13 +70,9 @@ class Snippet(db.Model):
     private = db.BooleanProperty(default=False)
 
 
-def _login_page(request, response):
-    """Write the login page to a response object."""
-    template_values = {
-        'login_url': users.create_login_url(request.uri),
-    }
-    path = os.path.join(os.path.dirname(__file__), 'login.html')
-    response.out.write(template.render(path, template_values))
+def _login_page(request, redirector):
+    """Redirect the user to a page where they can log in."""
+    redirector.redirect(users.create_login_url(request.uri))
 
 
 def _current_user_email():
@@ -230,7 +226,7 @@ class UserPage(webapp.RequestHandler):
 
     def get(self):
         if not users.get_current_user():
-            return _login_page(self.request, self.response)
+            return _login_page(self.request, self)
 
         user_email = self.request.get('u', _current_user_email())
 
@@ -272,7 +268,7 @@ class SummaryPage(webapp.RequestHandler):
 
     def get(self):
         if not users.get_current_user():
-            return _login_page(self.request, self.response)
+            return _login_page(self.request, self)
 
         week_string = self.request.get('week')
         if week_string:
@@ -408,7 +404,7 @@ class UpdateSnippet(webapp.RequestHandler):
 
     def get(self):
         if not users.get_current_user():
-            return _login_page(self.request, self.response)
+            return _login_page(self.request, self)
 
         email = self.request.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(email):
@@ -427,7 +423,7 @@ class Settings(webapp.RequestHandler):
 
     def get(self):
         if not users.get_current_user():
-            return _login_page(self.request, self.response)
+            return _login_page(self.request, self)
 
         user_email = self.request.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(user_email):
@@ -456,7 +452,7 @@ class UpdateSettings(webapp.RequestHandler):
 
     def get(self):
         if not users.get_current_user():
-            return _login_page(self.request, self.response)
+            return _login_page(self.request, self)
 
         user_email = self.request.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(user_email):
