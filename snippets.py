@@ -539,6 +539,21 @@ def _send_snippets_mail(to, subject, template_path, template_values):
     time.sleep(2)
 
 
+class SendFridayReminderHipChat(webapp.RequestHandler):
+    """Send a HipChat message to the KA room."""
+
+    def _send_to_hipchat(self):
+        """Sends a note to the main hipchat room."""
+        msg = ('Reminder: Weekly snippets due Monday at 5pm. '
+               '<a href="http://weekly-snippets.appspot.com/">'
+               'http://weekly-snippets.appspot.com/</a>')
+        hipchatlib.send_to_hipchat_room('Khan Academy', msg)
+
+    def get(self):
+        if _SEND_TO_HIPCHAT:
+            self._send_to_hipchat()
+
+
 class SendReminderEmail(webapp.RequestHandler):
     """Send an email to everyone who doesn't have a snippet for this week."""
 
@@ -600,6 +615,8 @@ application = webapp.WSGIApplication([('/', UserPage),
                                       ('/update_snippet', UpdateSnippet),
                                       ('/settings', Settings),
                                       ('/update_settings', UpdateSettings),
+                                      ('/admin/send_friday_reminder_hipchat',
+                                       SendFridayReminderHipChat),
                                       ('/admin/send_reminder_email',
                                        SendReminderEmail),
                                       ('/admin/send_view_email',
