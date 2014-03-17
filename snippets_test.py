@@ -170,50 +170,58 @@ class PostTestCase(SnippetsTestBase):
 
 
 class LoginRequiredTestCase(SnippetsTestBase):
+    def assert_requires_login(self, response):
+        """Assert that a response causes us to redirect to the login page."""
+        self.assertIn('login', response.headers.get('Location', '').lower())
+
+    def assert_does_not_require_login(self, response):
+        """Assert that a response is not a redirect to the login page."""
+        self.assertNotIn('login', response.headers.get('Location', '').lower())
+
     def testLoginRequiredForUserView(self):
         url = '/'
         response = self.request_fetcher.get(url)
-        self.assertIn('must be logged in', response.body)
+        self.assert_requires_login(response)
 
         self.login('user@example.com')
         response = self.request_fetcher.get(url)
-        self.assertNotIn('must be logged in', response.body)
+        self.assert_does_not_require_login(response)
 
     def testLoginRequiredForWeeklyView(self):
         url = '/weekly'
         response = self.request_fetcher.get(url)
-        self.assertIn('must be logged in', response.body)
+        self.assert_requires_login(response)
 
         self.login('user@example.com')
         response = self.request_fetcher.get(url)
-        self.assertNotIn('must be logged in', response.body)
+        self.assert_does_not_require_login(response)
 
     def testLoginRequiredForSettingsView(self):
         url = '/settings'
         response = self.request_fetcher.get(url)
-        self.assertIn('must be logged in', response.body)
+        self.assert_requires_login(response)
 
         self.login('user@example.com')
         response = self.request_fetcher.get(url)
-        self.assertNotIn('must be logged in', response.body)
+        self.assert_does_not_require_login(response)
 
     def testLoginRequiredToUpdateSnippet(self):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
         response = self.request_fetcher.get(url)
-        self.assertIn('must be logged in', response.body)
+        self.assert_requires_login(response)
 
         self.login('user@example.com')
         response = self.request_fetcher.get(url)
-        self.assertNotIn('must be logged in', response.body)
+        self.assert_does_not_require_login(response)
 
     def testLoginRequiredToUpdateSettings(self):
         url = '/update_settings'
         response = self.request_fetcher.get(url)
-        self.assertIn('must be logged in', response.body)
+        self.assert_requires_login(response)
 
         self.login('user@example.com')
         response = self.request_fetcher.get(url)
-        self.assertNotIn('must be logged in', response.body)
+        self.assert_does_not_require_login(response)
 
 
 class AccessTestCase(UserTestBase):
@@ -474,6 +482,40 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.assertNumSnippets(response.body, 1)
         self.assertInSnippet('2@example.com', response.body, 0)
         self.assertTrue('(unknown)' in response.body)
+
+    def testWarningsWhenDue(self):
+        url = '/update_snippet?week=02-06-2012&snippet=old+snippet'
+        self.request_fetcher.get(url)
+
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 19)
+        response = self.request_fetcher.get('/')
+        self.assertNotIn('Due today', response.body)
+        self.assertNotIn('OVERDUE', response.body)
+
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20)
+        response = self.request_fetcher.get('/')
+        self.assertIn('Due today', response.body)
+        self.assertNotIn('OVERDUE', response.body)
+
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 21)
+        response = self.request_fetcher.get('/')
+        self.assertNotIn('Due today', response.body)
+        self.assertIn('OVERDUE', response.body)
+
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 22)
+        response = self.request_fetcher.get('/')
+        self.assertNotIn('Due today', response.body)
+        self.assertNotIn('OVERDUE', response.body)
+
+    def testWarningsWhenNotDue(self):
+        url = '/update_snippet?week=02-13-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+
+        for date in (19, 20, 21, 22):
+            snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, date)
+            response = self.request_fetcher.get('/')
+            self.assertNotIn('Due today', response.body)
+            self.assertNotIn('OVERDUE', response.body)
 
 
 class ShowCorrectWeekTestCase(UserTestBase):
@@ -869,4 +911,3 @@ class SendingEmailTestCase(UserTestBase):
 
 if __name__ == '__main__':
     unittest.main()
-

@@ -14,9 +14,15 @@
   {% if editable %}
     <form action="/update_snippet" method="get">
 
-    <h3>Snippets for the week of {{snippet.week|date:"F j, Y"}}
+    <h3>Snippets for the week starting {{snippet.week|date:"F j, Y"}}
         &nbsp; <input type="submit" value="Save" class="save-button">
         &nbsp; <button class="undo-button">undo</button>
+        {% if snippet.text == null_snippet_text and snippet.week == one_week_ago %}
+        <font color="red" size="-1">Due today!</font>
+        {% endif %}
+        {% if snippet.text == null_snippet_text and snippet.week == eight_days_ago %}
+        <font color="red" size="-1">OVERDUE!</font>
+        {% endif %}
     </h3>
 
     <input type="hidden" name="week" value="{{snippet.week|date:"m-d-Y"}}">
@@ -29,7 +35,7 @@
 
     </form>
   {% else %}
-    <h3>Snippets for the week of {{snippet.week|date:"F j, Y"}}</h3>
+    <h3>Snippets for the week starting {{snippet.week|date:"F j, Y"}}</h3>
 
     {% if snippet.private %}<font color="#888888">{% endif %}
     <pre>{{snippet.text|urlize}}</pre>

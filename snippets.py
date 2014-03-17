@@ -41,6 +41,9 @@ if _SEND_TO_HIPCHAT:
 _TODAY_FN = datetime.datetime.now
 
 
+_NULL_SNIPPET_TEXT = '(No snippet for this week)'
+
+
 # Note: I use email address rather than a UserProperty to uniquely
 # identify a user.  As per
 # http://code.google.com/appengine/docs/python/users/userobjects.html
@@ -66,7 +69,7 @@ class Snippet(db.Model):
     """Every snippet is identified by the monday of the week it goes with."""
     email = db.StringProperty(required=True)  # week+email: key to this record
     week = db.DateProperty(required=True)     # the monday of the week
-    text = db.TextProperty(default='(No snippet for this week)')
+    text = db.TextProperty(default=_NULL_SNIPPET_TEXT)
     private = db.BooleanProperty(default=False)
 
 
@@ -256,8 +259,12 @@ class UserPage(webapp.RequestHandler):
             'username': user_email,
             'domain': user_email.split('@')[-1],
             'view_week': _existingsnippet_monday(_TODAY_FN()),
+            # Snippets for the week of <one week ago> are due today.
+            'one_week_ago': _TODAY_FN().date() - datetime.timedelta(days=7),
+            'eight_days_ago': _TODAY_FN().date() - datetime.timedelta(days=8),
             'editable': _logged_in_user_has_permission_for(user_email),
             'snippets': snippets,
+            'null_snippet_text': _NULL_SNIPPET_TEXT,
             }
         path = os.path.join(os.path.dirname(__file__), 'user_snippets.html')
         self.response.out.write(template.render(path, template_values))
@@ -372,7 +379,7 @@ class UpdateSnippet(webapp.RequestHandler):
 
     def post(self):
         """handle ajax updates via POST
-        
+
         in particular, return status via json rather than redirects and
         hard exceptions. This isn't actually RESTy, it's just status
         codes and json.
@@ -411,7 +418,7 @@ class UpdateSnippet(webapp.RequestHandler):
             # TODO(csilvers): return a 403 here instead.
             raise RuntimeError('You do not have permissions to update user'
                                ' snippets for %s' % email)
-        
+
         self.update_snippet(email)
 
         email = self.request.get('u', _current_user_email())
