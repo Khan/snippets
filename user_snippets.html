@@ -27,9 +27,11 @@
 
     <input type="hidden" name="week" value="{{snippet.week|date:"m-d-Y"}}">
     <input type="hidden" name="u" value="{{username}}">
+    <label>
     <input type="checkbox" name="private" value="True"
            {% if snippet.private %}checked{% endif %}>
     Snippet is private (only viewable by people in the domain <i>{{domain}}</i>)
+    </label>
     <br>
     <textarea name="snippet" rows="6" cols="80">{{snippet.text}}</textarea>
 
