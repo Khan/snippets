@@ -1,3 +1,13 @@
+"""Snippets server.
+
+This server runs the Khan Academy weekly snippets.  Users can
+add a summary of what they did in the last week, and browse
+other people's snippets.  They will also get weekly mail with
+everyone's snippets in them.
+"""
+
+__author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
+
 import datetime
 import logging
 import os
@@ -15,16 +25,6 @@ from google.appengine.ext import webapp
 from google.appengine.ext.webapp import template
 from google.appengine.ext.webapp.util import run_wsgi_app
 from google.appengine.ext import db
-
-"""Snippets server.
-
-This server runs the Khan Academy weekly snippets.  Users can
-add a summary of what they did in the last week, and browse
-other people's snippets.  They will also get weekly mail with
-everyone's snippets in them.
-"""
-
-__author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 
 
 # Have the cron jobs send to HipChat in addition to email?
@@ -108,9 +108,15 @@ def _get_or_create_user(email):
 def _newsnippet_monday(today):
     """Return a datetime.date object: the monday for new snippets.
 
-    The rule is that up through wednesday, all snippets are assumed to
-    be for the previous week.  Starting on thursday, by default you
-    start putting in snippets for this week.
+    We just return the monday for this week.  Saturday and Sunday
+    map to the previous monday.
+
+    Note that this means when you look at snippets for monday, you're
+    offered to enter snippets for the week that has just started, even
+    though not much has happened yet!  This is for people who like to
+    enter snippets as they go along.  For those people who wait until
+    monday to fill in the previous week's snippets, they can still do
+    so; the second snippet box will be marked 'DUE TODAY'.
 
     Arguments:
        today: the current day as a datetime.datetime object, used to
@@ -121,10 +127,7 @@ def _newsnippet_monday(today):
        as a datetime.date (not datetime.datetime) object.
     """
     today_weekday = today.weekday()   # monday == 0, sunday == 6
-    if today_weekday <= 2:            # wed or before
-        end_monday = today - datetime.timedelta(today_weekday + 7)
-    else:
-        end_monday = today - datetime.timedelta(today_weekday)
+    end_monday = today - datetime.timedelta(today_weekday)
     return end_monday.date()
 
 

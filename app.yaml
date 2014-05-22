@@ -1,6 +1,6 @@
 application: weekly-snippets-hrd
 version: 1
-runtime: python
+runtime: python27
 api_version: 1
 default_expiration: "365d"
 

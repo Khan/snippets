@@ -528,10 +528,9 @@ class ShowCorrectWeekTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
     def testMonday(self):
-        # For adding new snippets, you have until Wed to add for last week.
         snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20)
         response = self.request_fetcher.get('/')
-        self.assertInSnippet('February 13, 2012', response.body, 0)
+        self.assertInSnippet('February 20, 2012', response.body, 0)
         # For *viewing*'s snippets, we always show last week's snippets.
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
@@ -539,14 +538,14 @@ class ShowCorrectWeekTestCase(UserTestBase):
     def testTuesday(self):
         snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 21)
         response = self.request_fetcher.get('/')
-        self.assertInSnippet('February 13, 2012', response.body, 0)
+        self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
     def testWednesday(self):
         snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 22)
         response = self.request_fetcher.get('/')
-        self.assertInSnippet('February 13, 2012', response.body, 0)
+        self.assertInSnippet('February 20, 2012', response.body, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.body)
 
