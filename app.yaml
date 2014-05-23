@@ -22,13 +22,12 @@ handlers:
   mime_type: image/x-icon
   upload: images/favicon.ico
 
-- url: /remote_api
-  script: $PYTHON_LIB/google/appengine/ext/remote_api/handler.py
-  login: admin
-
 - url: /admin/.*
-  script: snippets.py
+  script: snippets.application
   login: admin
 
 - url: .*
-  script: snippets.py
+  script: snippets.application
+
+builtins:
+- remote_api: on
