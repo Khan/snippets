@@ -1,9 +1,3 @@
-import hipchat.config
-import hipchat.room
-
-from google.appengine.ext import db
-from google.appengine.ext import webapp
-
 """Snippets server -> HipChat integration.
 
 At Khan Academy we use HipChat for messaging.  This provides HipChat
@@ -24,30 +18,67 @@ or this won't work.
 Do not commit hipchat.cfg into git!  It's a secret.
 """
 
+import logging
+import urllib
+import urllib2
+
+from google.appengine.ext import webapp
+
+
+_TOKEN = None
+
+
 def hipchat_init():
     """Initializes hipchat, returns true if it worked ok."""
-    hipchat.config.init_cfg('hipchat.cfg')
-    return bool(hipchat.config.token)
+    global _TOKEN
+    config_fname = 'hipchat.cfg'
+    try:
+        config = open(config_fname).read().strip()
+        if not config.startswith('token = '):
+            raise ValueError('%s should look like "token = <value>\n"')
+        _TOKEN = config[len('token = '):]
+        return True
+    except IOError:
+        logging.error('Unable to open %s; disabling HipChat' % config_fname)
+        return False
+    except ValueError, why:
+        logging.error('%s; disabling HipChat' % why)
+        return False
+
+
+def _make_hipchat_api_call(post_dict_with_secret_token):
+    # This is a separate function just to make it easy to mock for tests.
+    r = urllib2.urlopen('https://api.hipchat.com/v1/rooms/message',
+                        urllib.urlencode(post_dict_with_secret_token))
+    if r.getcode() != 200:
+        raise ValueError(r.read())
 
 
 def send_to_hipchat_room(room_name, message):
-    """For this to work, the hipchat token must be in hipchat.cfg."""
-    for room in hipchat.room.Room.list():
-        if room.name == room_name:
-            # Have to go through hoops since 'from' is reserved in python.
-            msg_dict = {
-                'room_id': room.room_id,
-                'from': 'snippet-server',
-                'notify': 1,
-                'message': message,
-            }
-            hipchat.room.Room.message(**msg_dict)
-            return
-    raise RuntimeError('Unable to send message to hipchat room %s' % room_name)
+    """Assuming hipchat_init() was called previously, send message to room."""
+    # urlencode requires that all fields be in utf-8.
+    post_dict = {
+        'room_id': room_name.encode('utf-8'),
+        'from': 'snippet-server',
+        'notify': 1,
+        'message': message.encode('utf-8'),
+        'auth_token': _TOKEN,
+    }
+
+    if not _TOKEN:
+        logging.warning("Not sending this to hipchat (no token found): %s"
+                        % post_dict)
+    else:
+        try:
+            _make_hipchat_api_call(post_dict)
+        except Exception, why:
+            del post_dict['auth_token']     # don't log the secret token!
+            logging.error('Failed sending %s to hipchat: %s'
+                          % (post_dict, why))
 
 
 class TestSendToHipchat(webapp.RequestHandler):
     """Send a (fixed) message to the hipchat room."""
     def get(self):
-        send_to_hipchat_room('1s and 0s', 'Test of snippets-to-hipchat')
+        send_to_hipchat_room('HipChat Tests', 'Test of snippets-to-hipchat')
         self.response.out.write('OK')
