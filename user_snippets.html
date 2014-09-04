@@ -14,7 +14,7 @@
   {% if editable %}
     <form action="/update_snippet" method="get">
 
-    <h3>Snippets for the week starting {{snippet.week|date:"F j, Y"}}
+    <h3>Snippets for the week starting {{snippet.week|readable_date}}
         &nbsp; <input type="submit" value="Save" class="save-button">
         &nbsp; <button class="undo-button">undo</button>
         {% if snippet.text == null_snippet_text and snippet.week == one_week_ago %}
@@ -25,7 +25,7 @@
         {% endif %}
     </h3>
 
-    <input type="hidden" name="week" value="{{snippet.week|date:"m-d-Y"}}">
+    <input type="hidden" name="week" value="{{snippet.week|iso_date}}">
     <input type="hidden" name="u" value="{{username}}">
     <label>
     <input type="checkbox" name="private" value="True"
@@ -37,7 +37,7 @@
 
     </form>
   {% else %}
-    <h3>Snippets for the week starting {{snippet.week|date:"F j, Y"}}</h3>
+    <h3>Snippets for the week starting {{snippet.week|readable_date}}</h3>
 
     {% if snippet.private %}<font color="#888888">{% endif %}
     <pre>{{snippet.text|urlize}}</pre>

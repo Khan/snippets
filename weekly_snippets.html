@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>Snippets for the week starting {{view_week|date:"F j, Y"}}</title>
+  <title>Snippets for the week starting {{view_week|readable_date}}</title>
 </head>
 
 <body>
@@ -8,9 +8,9 @@
 {% include "header.html" %}
 
 <h2>
-<a href="/weekly?week={{prev_week|date:"m-d-Y"}}">&laquo;</a>
-Snippets for the week starting {{view_week|date:"F j, Y"}}
-<a href="/weekly?week={{next_week|date:"m-d-Y"}}">&raquo;</a>
+<a href="/weekly?week={{prev_week|iso_date}}">&laquo;</a>
+Snippets for the week starting {{view_week|readable_date}}
+<a href="/weekly?week={{next_week|iso_date}}">&raquo;</a>
 </h2>
 
 {% for category_and_snippets in categories_and_snippets %}

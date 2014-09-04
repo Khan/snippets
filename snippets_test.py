@@ -517,6 +517,15 @@ class SetAndViewSnippetsTestCase(UserTestBase):
             self.assertNotIn('Due today', response.body)
             self.assertNotIn('OVERDUE', response.body)
 
+    def testPrettyDateFormatting(self):
+        # Just so we're not a new user.
+        url = '/update_snippet?week=02-06-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 6)
+        response = self.request_fetcher.get('/')
+        self.assertIn('February 6, 2012', response.body)
+
 
 class ShowCorrectWeekTestCase(UserTestBase):
     """Test we show the right snippets for edit/view based on day of week."""

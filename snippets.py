@@ -16,9 +16,9 @@ import urllib
 
 from google.appengine.api import mail
 from google.appengine.api import users
-from google.appengine.ext import webapp
-from google.appengine.ext.webapp import template
 from google.appengine.ext import db
+import webapp2
+from webapp2_extras import jinja2
 
 
 # Have the cron jobs send to HipChat in addition to email?
@@ -36,6 +36,15 @@ _TODAY_FN = datetime.datetime.now
 
 
 _NULL_SNIPPET_TEXT = '(No snippet for this week)'
+
+
+jinja2.default_config['template_path'] = os.path.dirname(__file__)
+jinja2.default_config['filters'] = {
+    'readable_date': (
+        lambda value: value.strftime('%B %d, %Y').replace(' 0', ' ')),
+    'iso_date': (
+        lambda value: value.strftime('%m-%d-%Y')),
+    }
 
 
 # Note: I use email address rather than a UserProperty to uniquely
@@ -221,7 +230,18 @@ def fill_in_missing_snippets(existing_snippets, user_email, today):
     return all_snippets
 
 
-class UserPage(webapp.RequestHandler):
+class BaseHandler(webapp2.RequestHandler):
+    """Set up as per the jinja2.py docstring."""
+    @webapp2.cached_property
+    def jinja2(self):
+        return jinja2.get_jinja2()
+
+    def render_response(self, template_filename, context):
+        html = self.jinja2.render_template(template_filename, **context)
+        self.response.write(html)
+
+
+class UserPage(BaseHandler):
     """Show all the snippets for a single user."""
 
     def get(self):
@@ -236,8 +256,7 @@ class UserPage(webapp.RequestHandler):
                 'logout_url': users.create_logout_url('/'),
                 'username': user_email,
                 }
-            path = os.path.join(os.path.dirname(__file__), 'new_user.html')
-            self.response.out.write(template.render(path, template_values))
+            self.render_response('new_user.html', template_values)
             return
 
         snippets_q = Snippet.all()
@@ -263,11 +282,10 @@ class UserPage(webapp.RequestHandler):
             'snippets': snippets,
             'null_snippet_text': _NULL_SNIPPET_TEXT,
             }
-        path = os.path.join(os.path.dirname(__file__), 'user_snippets.html')
-        self.response.out.write(template.render(path, template_values))
+        self.render_response('user_snippets.html', template_values)
 
 
-class SummaryPage(webapp.RequestHandler):
+class SummaryPage(BaseHandler):
     """Show all the snippets for a single week."""
 
     def get(self):
@@ -333,8 +351,7 @@ class SummaryPage(webapp.RequestHandler):
             'next_week': week + datetime.timedelta(7),
             'categories_and_snippets': categories_and_snippets,
             }
-        path = os.path.join(os.path.dirname(__file__), 'weekly_snippets.html')
-        self.response.out.write(template.render(path, template_values))
+        self.render_response('weekly_snippets.html', template_values)
 
 
 # TODO(csilvers): would like to move to an ajax model where each
@@ -344,7 +361,7 @@ class SummaryPage(webapp.RequestHandler):
 # back to the previous state and send an ajax request to update the
 # snippet in the db.
 
-class UpdateSnippet(webapp.RequestHandler):
+class UpdateSnippet(BaseHandler):
     def update_snippet(self, email):
         week_string = self.request.get('week')
         week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
@@ -422,7 +439,7 @@ class UpdateSnippet(webapp.RequestHandler):
         self.redirect("/?msg=Snippet+saved&u=%s" % urllib.quote(email))
 
 
-class Settings(webapp.RequestHandler):
+class Settings(BaseHandler):
     """Page to display a user's settings (from class User) for modification."""
 
     def get(self):
@@ -447,11 +464,10 @@ class Settings(webapp.RequestHandler):
             # commas with newlines for printing.
             'wants_to_view': user.wants_to_view.replace(',', '\n'),
             }
-        path = os.path.join(os.path.dirname(__file__), 'settings.html')
-        self.response.out.write(template.render(path, template_values))
+        self.render_response('settings.html', template_values)
 
 
-class UpdateSettings(webapp.RequestHandler):
+class UpdateSettings(BaseHandler):
     """Updates the db with modifications from the Settings page."""
 
     def get(self):
@@ -531,11 +547,13 @@ def _get_email_to_current_snippet_map(today):
 
 
 def _send_snippets_mail(to, subject, template_path, template_values):
+    jinja2_instance = jinja2.get_jinja2()
     mail.send_mail(sender=('Khan Academy Snippet Server'
                            ' <csilvers+snippets@khanacademy.org>'),
                    to=to,
                    subject=subject,
-                   body=template.render(template_path, template_values))
+                   body=jinja2_instance.render_template(template_path,
+                                                        **template_values))
     # Appengine has a quota of 32 emails per minute:
     #    https://developers.google.com/appengine/docs/quotas#Mail
     # We pause 2 seconds between each email to make sure we
@@ -543,7 +561,7 @@ def _send_snippets_mail(to, subject, template_path, template_values):
     time.sleep(2)
 
 
-class SendFridayReminderHipChat(webapp.RequestHandler):
+class SendFridayReminderHipChat(BaseHandler):
     """Send a HipChat message to the KA room."""
 
     def _send_to_hipchat(self):
@@ -558,14 +576,13 @@ class SendFridayReminderHipChat(webapp.RequestHandler):
             self._send_to_hipchat()
 
 
-class SendReminderEmail(webapp.RequestHandler):
+class SendReminderEmail(BaseHandler):
     """Send an email to everyone who doesn't have a snippet for this week."""
 
     def _send_mail(self, email):
         template_values = {}
-        path = os.path.join(os.path.dirname(__file__), 'reminder_email')
         _send_snippets_mail(email, 'Weekly snippets due today at 5pm',
-                            path, template_values)
+                            'reminder_email', template_values)
 
     def _send_to_hipchat(self):
         """Sends a note to the main hipchat room."""
@@ -588,14 +605,13 @@ class SendReminderEmail(webapp.RequestHandler):
             self._send_to_hipchat()
 
 
-class SendViewEmail(webapp.RequestHandler):
+class SendViewEmail(BaseHandler):
     """Send an email to everyone to look at the week's snippets."""
 
     def _send_mail(self, email, has_snippets):
         template_values = {'has_snippets': has_snippets}
-        path = os.path.join(os.path.dirname(__file__), 'view_email')
         _send_snippets_mail(email, 'Weekly snippets are ready!',
-                            path, template_values)
+                            'view_email', template_values)
 
     def _send_to_hipchat(self):
         """Sends a note to the main hipchat room."""
@@ -614,18 +630,18 @@ class SendViewEmail(webapp.RequestHandler):
             self._send_to_hipchat()
 
 
-application = webapp.WSGIApplication([('/', UserPage),
-                                      ('/weekly', SummaryPage),
-                                      ('/update_snippet', UpdateSnippet),
-                                      ('/settings', Settings),
-                                      ('/update_settings', UpdateSettings),
-                                      ('/admin/send_friday_reminder_hipchat',
-                                       SendFridayReminderHipChat),
-                                      ('/admin/send_reminder_email',
-                                       SendReminderEmail),
-                                      ('/admin/send_view_email',
-                                       SendViewEmail),
-                                      ('/admin/test_send_to_hipchat',
-                                       hipchatlib.TestSendToHipchat),
+application = webapp2.WSGIApplication([('/', UserPage),
+                                       ('/weekly', SummaryPage),
+                                       ('/update_snippet', UpdateSnippet),
+                                       ('/settings', Settings),
+                                       ('/update_settings', UpdateSettings),
+                                       ('/admin/send_friday_reminder_hipchat',
+                                        SendFridayReminderHipChat),
+                                       ('/admin/send_reminder_email',
+                                        SendReminderEmail),
+                                       ('/admin/send_view_email',
+                                        SendViewEmail),
+                                       ('/admin/test_send_to_hipchat',
+                                        hipchatlib.TestSendToHipchat),
                                       ],
                                       debug=True)
