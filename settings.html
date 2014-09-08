@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 <head>
   <title>User settings for {{username}}</title>
@@ -19,6 +20,23 @@
 <input type="textbox" name="category" value="{{user.category}}">
 </p>
 
+<p><b>Interpret snippets as
+    <a href="http://daringfireball.net/projects/markdown/syntax">markdown</a>
+    by default?
+  </b>
+<input type="radio" name="markdown" value="yes"
+       {% if user.uses_markdown %}checked{% endif %}> yes
+<input type="radio" name="markdown" value="no"
+       {% if not user.uses_markdown %}checked{% endif %}> no
+</p>
+
+<p><b>Have snippets be private by default?:</b>
+<input type="radio" name="private" value="yes"
+       {% if user.private_snippets %}checked{% endif %}> yes
+<input type="radio" name="private" value="no"
+       {% if not user.private_snippets %}checked{% endif %}> no
+</p>
+
 <p><b>Receive reminder emails?:</b>
 <input type="radio" name="reminder_email" value="yes"
        {% if user.wants_email %}checked{% endif %}> yes
@@ -29,7 +47,7 @@
 <p><b>Email addresses of people to view snippets of</b>
 (regexp, one per line, "all" for everybody):<br>
 (TODO(csilvers): this field is currently ignored)<br>
-<textarea name="to_view" rows="20" cols="60">{{wants_to_view}}</textarea>
+<textarea name="to_view" rows="4" cols="60">{{wants_to_view}}</textarea>
 </p>
 
 <input type="hidden" name="redirect_to" value="{{redirect_to}}">

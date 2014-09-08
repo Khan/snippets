@@ -28,6 +28,7 @@ sys.path.extend(os.environ['PATH'].split(':'))
 import dev_appserver
 dev_appserver.fix_sys_path()
 
+from google.appengine.datastore import datastore_stub_util
 from google.appengine.ext import db
 from google.appengine.ext import testbed
 import webtest   # may need to do 'pip install webtest'
@@ -40,9 +41,12 @@ _TEST_TODAY = datetime.datetime(2012, 2, 23)
 
 class SnippetsTestBase(unittest.TestCase):
     def setUp(self):
+        # We're not interested in testing consistency stuff in these tests.
         self.testbed = testbed.Testbed()
         self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
+        policy = datastore_stub_util.PseudoRandomHRConsistencyPolicy(
+            probability=1)
+        self.testbed.init_datastore_v3_stub(consistency_policy=policy)
         self.testbed.init_user_stub()
         self.request_fetcher = webtest.TestApp(snippets.application)
         snippets._TODAY_FN = lambda: _TEST_TODAY
@@ -60,7 +64,7 @@ class SnippetsTestBase(unittest.TestCase):
 
     def assertNumSnippets(self, body, expected_count):
         """Assert the page 'body' has exactly expected_count snippets in it."""
-        # We annotate the div at the beginning of each snippet with
+       # We annotate the div at the beginning of each snippet with
         # class="snippet".
         self.assertEqual(expected_count, body.count('class="snippet"'), body)
 
@@ -306,6 +310,164 @@ class NewUserTestCase(UserTestBase):
         self.assertIn('Snippets for user@example.com', done_response.body)
 
 
+class UserSettingsTestCase(UserTestBase):
+    """Test that user settings flow through to snippets page appropriately."""
+
+    def assertInputIsChecked(self, name, body, snippet_number):
+        self.assertInSnippet('name="%s" value="True"\n'
+                             '           checked>' % name,
+                             body, snippet_number)
+
+    def assertInputIsNotChecked(self, name, body, snippet_number):
+        self.assertInSnippet('name="%s" value="True"\n'
+                             '           >' % name,
+                             body, snippet_number)
+
+    def testDefaultUserSettings(self):
+        # Make sure the rest of the tests are actually testing
+        # non-default behavior.
+        self.request_fetcher.get('/update_settings?u=user@example.com')
+
+        response = self.request_fetcher.get('/')
+        # Neither private nor 'is-markdown' are checked by default.
+        self.assertInputIsNotChecked('private', response.body, 0)
+        self.assertInputIsNotChecked('is_markdown', response.body, 0)
+
+    def testPrivateUser(self):
+        self.request_fetcher.get(
+            '/update_settings?u=user@example.com&private=yes')
+        response = self.request_fetcher.get('/')
+        self.assertInputIsChecked('private', response.body, 0)
+        self.assertInputIsNotChecked('is_markdown', response.body, 0)
+
+    def testMarkdownUser(self):
+        self.request_fetcher.get(
+            '/update_settings?u=user@example.com&markdown=yes')
+        response = self.request_fetcher.get('/')
+        self.assertInputIsNotChecked('private', response.body, 0)
+        self.assertInputIsChecked('is_markdown', response.body, 0)
+
+    def testSettingsForFilledInSnippets(self):
+        url = '/update_snippet?week=02-21-2011&snippet=old+snippet'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/')
+        self.assertNumSnippets(response.body, 53)
+        self.assertInSnippet('(No snippet for this week)', response.body, 9)
+        self.assertInputIsNotChecked('private', response.body, 9)
+        self.assertInputIsNotChecked('is_markdown', response.body, 9)
+        self.assertInSnippet('old snippet', response.body, 52)
+        self.assertInputIsNotChecked('private', response.body, 52)
+        self.assertInputIsNotChecked('is_markdown', response.body, 52)
+
+        self.request_fetcher.get(
+            '/update_settings?u=user@example.com&markdown=yes')
+        response = self.request_fetcher.get('/')
+        self.assertNumSnippets(response.body, 53)
+        self.assertInSnippet('(No snippet for this week)', response.body, 9)
+        self.assertInputIsNotChecked('private', response.body, 9)
+        self.assertInputIsChecked('is_markdown', response.body, 9)
+        # But the existing snippet is unaffected.
+        self.assertInSnippet('old snippet', response.body, 52)
+        self.assertInputIsNotChecked('private', response.body, 52)
+        self.assertInputIsNotChecked('is_markdown', response.body, 52)
+
+        self.request_fetcher.get(
+            '/update_settings?u=user@example.com&private=yes')
+        response = self.request_fetcher.get('/')
+        self.assertNumSnippets(response.body, 53)
+        self.assertInSnippet('(No snippet for this week)', response.body, 9)
+        self.assertInputIsChecked('private', response.body, 9)
+        self.assertInputIsNotChecked('is_markdown', response.body, 9)
+        self.assertInSnippet('old snippet', response.body, 52)
+        self.assertInputIsNotChecked('private', response.body, 52)
+        self.assertInputIsNotChecked('is_markdown', response.body, 52)
+
+    def testCategoryUnset(self):
+        self.request_fetcher.get('/update_settings?u=user@example.com')
+        response = self.request_fetcher.get('/')
+        self.assertInSnippet('WARNING: Snippet will go in the "(unknown)"',
+                             response.body, 0)
+
+    def testCategorySet(self):
+        self.request_fetcher.get('/update_settings?u=user@example.com')
+        self.request_fetcher.get(
+            '/update_settings?u=user@example.com&category=Dev')
+        response = self.request_fetcher.get('/')
+        self.assertNotInSnippet('WARNING: Snippet will go in the "(unknown)"',
+                                response.body, 0)
+
+    def testCategoryUnsetButSnippetHasContent(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/')
+        self.assertNotInSnippet('WARNING: Snippet will go in the "(unknown)"',
+                                response.body, 0)
+
+    def testCategoryCheckForFilledInSnippets(self):
+        url = '/update_snippet?week=02-21-2011&snippet=old+snippet'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/')
+        self.assertNumSnippets(response.body, 53)
+        self.assertInSnippet('(No snippet for this week)', response.body, 9)
+        self.assertInSnippet('WARNING: Snippet will go in the "(unknown)"',
+                             response.body, 9)
+        self.assertInSnippet('old snippet', response.body, 52)
+        self.assertNotInSnippet('WARNING: Snippet will go in the "(unknown)"',
+                                response.body, 52)
+
+    def testHiddenUser(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/')
+        self.assertNumSnippets(response.body, 1)
+        response = self.request_fetcher.get('/weekly?week=02-27-2012')
+        self.assertNumSnippets(response.body, 1)    # "no snippet this week"
+
+        url = '/update_settings?u=user@example.com&is_hidden=yes'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/')
+        # Hiding doesn't affect the user-snippets page, just the weekly one.
+        self.assertNumSnippets(response.body, 1)
+        response = self.request_fetcher.get('/weekly?week=02-27-2012')
+        self.assertNumSnippets(response.body, 0)
+        # And it doesn't affect existing snippets, just empty ones.
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+
+    def testNewSnippetUnhides(self):
+        url = '/update_snippet?week=02-13-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+
+        url = '/update_settings?u=user@example.com&is_hidden=yes'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 0)
+
+        url = '/update_snippet?week=02-27-2012&snippet=new+snippet'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+        response = self.request_fetcher.get('/weekly?week=02-27-2012')
+        self.assertNumSnippets(response.body, 1)
+
+    def testChangingSettingsUnhides(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+
+        url = '/update_settings?u=user@example.com&is_hidden=yes'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-27-2012')
+        self.assertNumSnippets(response.body, 0)
+
+        url = '/update_settings?u=user@example.com'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-27-2012')
+        self.assertNumSnippets(response.body, 1)
+
+
 class SetAndViewSnippetsTestCase(UserTestBase):
     """Set some snippets, then make sure they're viewable."""
 
@@ -526,6 +688,23 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         response = self.request_fetcher.get('/')
         self.assertIn('February 6, 2012', response.body)
 
+    def testUrlize(self):
+        url = '/update_snippet?week=02-20-2012&snippet=visit+http://foo.com'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet(
+            '>visit <a href="http://foo.com">http://foo.com</a><',
+            response.body, 0)
+
+        # Also make sure we urlize on the user page.
+        self.login('2@example.com')
+        response = self.request_fetcher.get('/?u=user@example.com')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet(
+            '>visit <a href="http://foo.com">http://foo.com</a><',
+            response.body, 0)
+
 
 class ShowCorrectWeekTestCase(UserTestBase):
     """Test we show the right snippets for edit/view based on day of week."""
@@ -708,11 +887,11 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertNotInSnippet('foreign', response.body, 2)
         # We *should* see stuff from our domain, but in gray.
         self.assertInSnippet('private@example.com', response.body, 1)
-        self.assertInSnippet('font color', response.body, 1)
+        self.assertInSnippet('private_snippet', response.body, 1)
         self.assertInSnippet('no see um', response.body, 1)
         # And we should see public snippets, not in gray.
         self.assertInSnippet('public@example.com', response.body, 3)
-        self.assertNotInSnippet('font color', response.body, 3)
+        self.assertNotInSnippet('private_snippet', response.body, 3)
         self.assertInSnippet('see me', response.body, 3)
 
         self.login('random@some_other_domain.com')
@@ -720,13 +899,13 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertNumSnippets(response.body, 4)
         self.assertInSnippet('private@some_other_domain.com', response.body, 2)
         self.assertInSnippet('foreign', response.body, 2)
-        self.assertInSnippet('font color', response.body, 2)
+        self.assertInSnippet('private_snippet', response.body, 2)
         # Now we shouldn't see stuff from example.com
         self.assertInSnippet('private@example.com', response.body, 1)
         self.assertNotInSnippet('no see um', response.body, 1)
         # And we should also see public snippets, not in gray.
         self.assertInSnippet('public@example.com', response.body, 3)
-        self.assertNotInSnippet('font color', response.body, 3)
+        self.assertNotInSnippet('private_snippet', response.body, 3)
         self.assertInSnippet('see me', response.body, 3)
 
     def testPrivacyIsPerSnippet(self):
@@ -764,6 +943,142 @@ class PrivateSnippetTestCase(UserTestBase):
         for i in (0, 1, 2, 3):    # the 4 close@ snippets should sort first
             self.assertInSnippet('close@', response.body, i)
             self.assertNotInSnippet('whoa', response.body, i)
+
+
+class MarkdownSnippetTestCase(UserTestBase):
+    """Tests that we properly render snippets using markdown (or not).
+
+    Sadly, the actual markdown is done in javascript, so the best we
+    can test here is that the content is marked with the appropriate
+    class.
+    """
+    def setUp(self):
+        super(MarkdownSnippetTestCase, self).setUp()
+
+        # Set up some snippets as markdown, and some not.
+        url = ('/update_snippet?week=02-13-2012&snippet=*+item+1%0A*+item+2'
+               '&is_markdown=True')
+        self.request_fetcher.get(url)
+        url = '/update_snippet?week=02-20-2012&snippet=*+item+3%0A*+item+4'
+        self.request_fetcher.get(url)
+
+    def testMarkdownRendering(self):
+        response = self.request_fetcher.get('/weekly?week=02-13-2012')
+        self.assertInSnippet('class="markdown_snippet', response.body, 0)
+
+    def testTextRendering(self):
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertInSnippet('class="text_snippet', response.body, 0)
+
+
+class ManageUsersTestCase(UserTestBase):
+    """Test we can delete users properly."""
+    def setUp(self):
+        super(ManageUsersTestCase, self).setUp()
+
+        # Have users with various snippet characteristics.
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20, 12, 0, 0)
+        self.login('has_one_snippet@example.com')
+        self.request_fetcher.get('/update_snippet?week=02-13-2012&snippet=s1')
+
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20, 12, 0, 1)
+        self.login('has_many_snippets@example.com')
+        self.request_fetcher.get('/update_snippet?week=01-30-2012&snippet=s2')
+        self.request_fetcher.get('/update_snippet?week=02-13-2012&snippet=s3')
+
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20, 12, 0, 2)
+        self.login('has_old_snippet@example.com')
+        self.request_fetcher.get('/update_snippet?week=02-14-2011&snippet=s4')
+
+        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20, 12, 0, 3)
+        self.login('has_no_snippets@example.com')
+        self.request_fetcher.get('/settings')
+
+    def get_user_list(self, body):
+        """Returns the email usernames of the user-list, in order."""
+        return re.findall(r'name="delete ([^@]*)@example.com"', body)
+
+    def testMustBeAdminToManageUsers(self):
+        # Don't know how to test this -- it's enforced by app.yaml
+        pass
+
+    def testSortByEmail(self):
+        response = self.request_fetcher.get('/admin/manage_users'
+                                            '?sort_by=email')
+        expected = ['has_many_snippets', 'has_no_snippets',
+                    'has_old_snippet', 'has_one_snippet']
+        self.assertEqual(expected, self.get_user_list(response.body))
+        self.assertNotIn('@example.com deleted', response.body)  # we didn't
+
+    def testSortByCreation(self):
+        response = self.request_fetcher.get('/admin/manage_users'
+                                            '?sort_by=creation_time')
+        # Reverse order from when we created them above.
+        expected = ['has_no_snippets', 'has_old_snippet',
+                    'has_many_snippets', 'has_one_snippet']
+        self.assertEqual(expected, self.get_user_list(response.body))
+        self.assertNotIn('@example.com deleted', response.body)  # we didn't
+
+    def testSortByLastSnippet(self):
+        response = self.request_fetcher.get('/admin/manage_users'
+                                            '?sort_by=last_snippet_time')
+        # 'many' and 'one' are tied; the tiebreak is email.
+        expected = ['has_no_snippets', 'has_old_snippet',
+                    'has_many_snippets', 'has_one_snippet']
+        self.assertEqual(expected, self.get_user_list(response.body))
+        self.assertNotIn('@example.com deleted', response.body)  # we didn't
+
+    def testBadSortBy(self):
+        # status=500 means we expect to get back a 500 error for this.
+        self.request_fetcher.get('/admin/manage_users?sort_by=unknown',
+                                 status=500)
+
+    def testDelete(self):
+        response = self.request_fetcher.get(
+            '/admin/manage_users?delete+has_old_snippet@example.com=Delete')
+        if response.status_int in (301, 302, 303, 304):
+            response = response.follow()
+
+        expected = ['has_no_snippets', 'has_many_snippets', 'has_one_snippet']
+        self.assertEqual(expected, self.get_user_list(response.body))
+        self.assertIn('has_old_snippet@example.com deleted', response.body)
+
+    def testHide(self):
+        response = self.request_fetcher.get(
+            '/admin/manage_users?hide+has_old_snippet@example.com=Hide')
+        if response.status_int in (301, 302, 303, 304):
+            response = response.follow()
+
+        expected = ['has_no_snippets', 'has_old_snippet',
+                    'has_many_snippets', 'has_one_snippet']
+        self.assertEqual(expected, self.get_user_list(response.body))
+        self.assertIn('has_old_snippet@example.com hidden', response.body)
+        self.assertIn('value="Unhide"', response.body)
+
+    def testUnhide(self):
+        self.request_fetcher.get(
+            '/admin/manage_users?hide+has_old_snippet@example.com=Hide')
+        response = self.request_fetcher.get(
+            '/admin/manage_users?unhide+has_old_snippet@example.com=Hide')
+        if response.status_int in (301, 302, 303, 304):
+            response = response.follow()
+
+        expected = ['has_no_snippets', 'has_old_snippet',
+                    'has_many_snippets', 'has_one_snippet']
+        self.assertEqual(expected, self.get_user_list(response.body))
+        self.assertIn('has_old_snippet@example.com unhidden', response.body)
+        self.assertNotIn('value="Unhide"', response.body)
+
+    def testInvalidButton(self):
+        self.request_fetcher.get('/admin/manage_users'
+                                 '?delete+has_old_snippet=Delete',
+                                 status=500)
+        self.request_fetcher.get('/admin/manage_users'
+                                 '?hide+has_old_snippet=Hide',
+                                 status=500)
+        self.request_fetcher.get('/admin/manage_users'
+                                 '?unhide+has_old_snippet=Unhide',
+                                 status=500)
 
 
 class SendingEmailTestCase(UserTestBase):
@@ -915,6 +1230,16 @@ class SendingEmailTestCase(UserTestBase):
         self.assertTrue(self.total_sleep_seconds <= len(users) * 2.5,
                         '%d <= %d' % (self.total_sleep_seconds,
                                       len(users) * 2.5))
+
+
+class TitleCaseTestCase(unittest.TestCase):
+    def testSimple(self):
+        self.assertEqual('A Word to the Wise',
+                         snippets._title_case('a word to the wise'))
+
+    def testWeirdCasing(self):
+        self.assertEqual('A Word to the Wise',
+                         snippets._title_case('a wOrd to The WIse'))
 
 
 if __name__ == '__main__':

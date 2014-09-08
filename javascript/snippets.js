@@ -7,12 +7,13 @@ $(function() {
         $parentForm.removeClass("dirty").
             find(".undo-button, .save-button").
             prop("disabled", true);
-    }
+        $parentForm.find(".markdown_preview").hide();
+    };
 
     // save the state of each textarea to allow undos
     $(".snippet textarea").each(function(i, v) {
         saveLocalSnippet(v);
-    })
+    });
 
     // measure dirtiness on keyup
     $(".snippet textarea").on("keyup blur", function() {
@@ -23,7 +24,17 @@ $(function() {
 
         $parentForm.find(".undo-button, .save-button").
             prop("disabled", !dirty);
-    })
+
+        var $preview = $parentForm.find(".markdown_preview");
+        var $previewText = $parentForm.find(".markdown_snippet");
+        if (dirty &&
+              $parentForm.find("input[name='is_markdown']").prop('checked')) {
+            $previewText.html(marked($(this).val()));
+            $preview.show();
+        } else {
+            $preview.hide();
+        }
+    });
 
     // catch form submissions, submit and disable buttons
     $(".snippet form").on("submit", function(e) {
@@ -34,7 +45,7 @@ $(function() {
             saveLocalSnippet($textarea);
         };
         $.post($(this).attr("action"), vals, disableUndoOnUpdate);
-    })
+    });
 
     // undo button behavior
     $(".snippet .undo-button").on("click", function(e) {
@@ -45,7 +56,7 @@ $(function() {
         $parentForm.removeClass("dirty").
             find(".undo-button, .save-button").
             prop("disabled", true);
-    })
+    });
 
     // confirm window closings :)
     $(window).on("beforeunload", function() {
@@ -56,5 +67,5 @@ $(function() {
                 " unsaved snippet" + s;
             return msg;
         }
-    })
+    });
 });

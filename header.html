@@ -1,5 +1,6 @@
 <p><font size="-1"><div align="right">
 <a href="/settings?u={{username}}">user settings</a> |
+{% if is_admin %} <a href="/admin/manage_users">manage users (admin)</a> | {% endif %}
 <a href="{{logout_url}}">logout</a>
 </div></font></p>
 

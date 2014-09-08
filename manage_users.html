@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Manage Users</title>
+  <style>
+    table { border-collapse:collapse; }
+    table tr:nth-child(odd)   { background-color:#f1f1f1; }
+    table tr:nth-child(even)  { background-color:#ffffff; }
+    table th { color:#ffffff; background-color:#555555;
+               border:1px solid #555555; padding:3px;
+               vertical-align:top; text-align:left; }
+    table th a:link, table th a:visited { color:#ffffff; }
+    table th a:hover, table th a:active { color:#EE872A; }
+    table td { border:1px solid #d4d4d4; vertical-align:top; padding:5px; }
+    </style>
+</head>
+
+<body>
+
+{% include "header.html" %}
+
+<p><b>Hide</b> means that a user, while not being fully deleted, will
+  not show up with '(no snippet this week)' on weekly-snippet pages
+  until the next time they enter a snippet (at which point their
+  status will be reset to 'un-hidden').  This should normally be
+  favored over <b>delete</b>.  (That way returning interns will
+  retain their old snippets.)
+</p>
+
+<form action="/admin/manage_users" method="get">
+<table>
+<tbody>
+<tr>
+  <th> </th>
+  {% for (key, header) in (("email", "Email"),
+                           ("creation_time", "Joined"),
+                           ("last_snippet_time", "Last snippet")) %}
+  <th>{%if sort_by == key %}{{ header }}{% else %}<a href="/admin/manage_users?sort_by={{key}}">{{ header }}</a>{% endif %}</th>
+  {% endfor %}
+</tr>
+{% for (email, hidden, created, weeks_since_snippet) in user_data %}
+<tr>
+  <td>
+    {% if hidden %}
+        <input type="submit" name="unhide {{email}}" value="Unhide">
+    {% else %}
+        <input type="submit" name="hide {{email}}" value="Hide">
+    {% endif %}
+    <input type="submit" name="delete {{email}}" value="Delete">
+  </td>
+  <td>
+    {{ email }}
+  </td>
+  <td>
+    {% if created %}{{ created|iso_date }}{% else %}(unknown){% endif %}
+  </td>
+  <td>
+    {% if weeks_since_snippet != None %}{{ weeks_since_snippet }} weeks ago{% else %}--{% endif %}
+  </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+</form>
+
+</body>
+</html>

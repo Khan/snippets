@@ -11,6 +11,7 @@ __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 import datetime
 import logging
 import os
+import re
 import time
 import urllib
 
@@ -36,6 +37,7 @@ _TODAY_FN = datetime.datetime.now
 
 
 _NULL_SNIPPET_TEXT = '(No snippet for this week)'
+_NULL_CATEGORY = '(unknown)'
 
 
 jinja2.default_config['template_path'] = os.path.dirname(__file__)
@@ -61,8 +63,13 @@ jinja2.default_config['filters'] = {
 
 class User(db.Model):
     """User preferences."""
+    created = db.DateTimeProperty()
+    last_modified = db.DateTimeProperty(auto_now=True)
     email = db.StringProperty(required=True)           # The key to this record
-    category = db.StringProperty(default='(unknown)')  # used to group snippets
+    is_hidden = db.BooleanProperty(default=False)      # hide 'empty' snippets
+    category = db.StringProperty(default=_NULL_CATEGORY)  # groups snippets
+    uses_markdown = db.BooleanProperty(default=False)  # interpret snippet text
+    private_snippets = db.BooleanProperty(default=False)  # private by default?
     wants_email = db.BooleanProperty(default=True)     # get nag emails?
     # TODO(csilvers): make a ListProperty instead.
     wants_to_view = db.TextProperty(default='all')     # comma-separated list
@@ -70,10 +77,13 @@ class User(db.Model):
 
 class Snippet(db.Model):
     """Every snippet is identified by the monday of the week it goes with."""
+    created = db.DateTimeProperty()
+    last_modified = db.DateTimeProperty(auto_now=True)
     email = db.StringProperty(required=True)  # week+email: key to this record
     week = db.DateProperty(required=True)     # the monday of the week
     text = db.TextProperty(default=_NULL_SNIPPET_TEXT)
-    private = db.BooleanProperty(default=False)
+    private = db.BooleanProperty(default=False)       # snippet is private?
+    is_markdown = db.BooleanProperty(default=False)   # text is markdown?
 
 
 def _login_page(request, redirector):
@@ -93,16 +103,27 @@ def _get_user(email):
     return q.get()
 
 
+def _get_user_or_die(email):
+    user = _get_user(email)
+    if not user:
+        raise ValueError('User "%s" not found' % email)
+    return user
+
+
 def _get_or_create_user(email):
     """Return the user object with the given email, creating if if needed."""
     user = _get_user(email)
     if user:
-        pass
+        if user.is_hidden:
+            # Any access that causes _get_or_create_user() is an access
+            # that indicates the user is active again, so un-hide them.
+            user.is_hidden = False
+            user.put()
     elif not _logged_in_user_has_permission_for(email):
         raise IndexError('User "%s" not found; did you specify'
                          ' the full email address?' % email)
     else:
-        user = User(email=email)
+        user = User(email=email, created=_TODAY_FN())
         db.put(user)
         db.get(user.key())    # ensure db consistency for HRD
     return user
@@ -186,7 +207,15 @@ def _can_view_private_snippets(my_email, snippet_email):
     return my_email[my_at:] == snippet_email[snippet_at:]
 
 
-def fill_in_missing_snippets(existing_snippets, user_email, today):
+def _snippets_for_user(user_email):
+    """Return all snippets for a given user, oldest snippet first."""
+    snippets_q = Snippet.all()
+    snippets_q.filter('email = ', user_email)
+    snippets_q.order('week')            # this puts oldest snippet first
+    return snippets_q.fetch(1000)       # good for many years...
+
+
+def fill_in_missing_snippets(existing_snippets, user, user_email, today):
     """Make sure that the snippets array has a Snippet entry for every week.
 
     The db may have holes in it -- weeks where the user didn't write a
@@ -199,6 +228,7 @@ def fill_in_missing_snippets(existing_snippets, user_email, today):
          The first snippet in the list is assumed to be the oldest
          snippet from that user (at least, it's where we start filling
          from).
+       user: a User object for the person writing this snippet.
        user_email: the email of the person whose snippets it is.
        today: a datetime.datetime object representing the current day.
          We fill up to then.  If today is wed or before, then we
@@ -210,7 +240,9 @@ def fill_in_missing_snippets(existing_snippets, user_email, today):
     """
     end_monday = _newsnippet_monday(today)
     if not existing_snippets:         # no snippets at all?  Just do this week
-        return [Snippet(email=user_email, week=end_monday)]
+        return [Snippet(email=user_email, week=end_monday,
+                        private=user.private_snippets,
+                        is_markdown=user.uses_markdown)]
 
     # Add a sentinel, one week past the last week we actually want.
     # We'll remove it at the end.
@@ -221,7 +253,9 @@ def fill_in_missing_snippets(existing_snippets, user_email, today):
     for snippet in existing_snippets[1:]:
         while snippet.week - all_snippets[-1].week > datetime.timedelta(7):
             missing_week = all_snippets[-1].week + datetime.timedelta(7)
-            all_snippets.append(Snippet(email=user_email, week=missing_week))
+            all_snippets.append(Snippet(email=user_email, week=missing_week,
+                                        private=user.private_snippets,
+                                        is_markdown=user.uses_markdown))
         all_snippets.append(snippet)
 
     # Get rid of the sentinel we added above.
@@ -249,8 +283,9 @@ class UserPage(BaseHandler):
             return _login_page(self.request, self)
 
         user_email = self.request.get('u', _current_user_email())
+        user = _get_user(user_email)
 
-        if not _get_user(user_email):
+        if not user:
             template_values = {
                 'login_url': users.create_login_url(self.request.uri),
                 'logout_url': users.create_logout_url('/'),
@@ -259,30 +294,40 @@ class UserPage(BaseHandler):
             self.render_response('new_user.html', template_values)
             return
 
-        snippets_q = Snippet.all()
-        snippets_q.filter('email = ', user_email)
-        snippets_q.order('week')            # this puts oldest snippet first
-        snippets = snippets_q.fetch(1000)   # good for many years...
+        snippets = _snippets_for_user(user_email)
 
         if not _can_view_private_snippets(_current_user_email(), user_email):
             snippets = [snippet for snippet in snippets if not snippet.private]
-        snippets = fill_in_missing_snippets(snippets, user_email, _TODAY_FN())
+        snippets = fill_in_missing_snippets(snippets, user,
+                                            user_email, _TODAY_FN())
         snippets.reverse()                  # get to newest snippet first
 
         template_values = {
             'logout_url': users.create_logout_url('/'),
             'message': self.request.get('msg'),
             'username': user_email,
+            'is_admin': users.is_current_user_admin(),
             'domain': user_email.split('@')[-1],
             'view_week': _existingsnippet_monday(_TODAY_FN()),
             # Snippets for the week of <one week ago> are due today.
             'one_week_ago': _TODAY_FN().date() - datetime.timedelta(days=7),
             'eight_days_ago': _TODAY_FN().date() - datetime.timedelta(days=8),
             'editable': _logged_in_user_has_permission_for(user_email),
+            'user': user,
             'snippets': snippets,
             'null_snippet_text': _NULL_SNIPPET_TEXT,
+            'null_category': _NULL_CATEGORY,
             }
         self.render_response('user_snippets.html', template_values)
+
+
+def _title_case(s):
+    """Like string.title(), but does not uppercase 'and'."""
+    # Smarter would be to use 'pip install titlecase'.
+    SMALL = 'a|an|and|as|at|but|by|en|for|if|in|of|on|or|the|to|v\.?|via|vs\.?'
+    # We purposefully don't match small words at the beginning of a string.
+    SMALL_RE = re.compile(r' (%s)\b' % SMALL, re.I)
+    return SMALL_RE.sub(lambda m: ' ' + m.group(1).lower(), s.title())
 
 
 class SummaryPage(BaseHandler):
@@ -307,8 +352,14 @@ class SummaryPage(BaseHandler):
         user_q = User.all()
         results = user_q.fetch(1000)
         email_to_category = {}
+        hidden_users = set()      # emails of users with the 'hidden' property
         for result in results:
-            email_to_category[result.email] = result.category
+            # People aren't very good about capitalizing their
+            # categories consistently, so we enforce title-case,
+            # with exceptions for 'and'.
+            email_to_category[result.email] = _title_case(result.category)
+            if result.is_hidden:
+                hidden_users.add(result.email)
 
         # Collect the snippets by category.  As we see each email,
         # delete it from email_to_category.  At the end of this,
@@ -317,26 +368,30 @@ class SummaryPage(BaseHandler):
         snippets_by_category = {}
         for snippet in snippets:
             # Ignore this snippet if we don't have permission to view it.
-            if (not snippet.private or
-                _can_view_private_snippets(_current_user_email(),
-                                           snippet.email)):
-                category = email_to_category.get(snippet.email, '(unknown)')
-                snippets_by_category.setdefault(category, []).append(snippet)
-                if snippet.email in email_to_category:
-                    del email_to_category[snippet.email]
-
-        # Add in empty snippets for the people who didn't have any.
-        for (email, category) in email_to_category.iteritems():
-            snippet = Snippet(email=email, week=week,
-                              text='(no snippet this week)')
+            if (snippet.private and
+                    not _can_view_private_snippets(_current_user_email(),
+                                                   snippet.email)):
+                continue
+            category = email_to_category.get(snippet.email, _NULL_CATEGORY)
             snippets_by_category.setdefault(category, []).append(snippet)
+            if snippet.email in email_to_category:
+                del email_to_category[snippet.email]
+
+        # Add in empty snippets for the people who didn't have any --
+        # unless a user is marked 'hidden'.  (That's what 'hidden'
+        # means: pretend they don't exist until they have a non-empty
+        # snippet again.)
+        for (email, category) in email_to_category.iteritems():
+            if email not in hidden_users:
+                snippet = Snippet(email=email, week=week,
+                                  text='(no snippet this week)')
+                snippets_by_category.setdefault(category, []).append(snippet)
 
         # Now get a sorted list, categories in alphabetical order and
         # each snippet-author within the category in alphabetical
         # order.  The data structure is ((category, (snippet, ...)), ...)
         categories_and_snippets = []
-        for category in snippets_by_category:
-            snippets = snippets_by_category[category]
+        for (category, snippets) in snippets_by_category.iteritems():
             snippets.sort(key=lambda snippet: snippet.email)
             categories_and_snippets.append((category, snippets))
         categories_and_snippets.sort()
@@ -346,6 +401,7 @@ class SummaryPage(BaseHandler):
             'message': self.request.get('msg'),
             # Used only to switch to 'username' mode and to modify settings.
             'username': _current_user_email(),
+            'is_admin': users.is_current_user_admin(),
             'prev_week': week - datetime.timedelta(7),
             'view_week': week,
             'next_week': week + datetime.timedelta(7),
@@ -353,13 +409,6 @@ class SummaryPage(BaseHandler):
             }
         self.render_response('weekly_snippets.html', template_values)
 
-
-# TODO(csilvers): would like to move to an ajax model where each
-# snippet has a button next to it that says 'edit', and if you click
-# that it becomes a textbox with buttons saying 'save' and 'cancel'.
-# 'cancel' will go back to the previous state, while 'save' will go
-# back to the previous state and send an ajax request to update the
-# snippet in the db.
 
 class UpdateSnippet(BaseHandler):
     def update_snippet(self, email):
@@ -370,6 +419,7 @@ class UpdateSnippet(BaseHandler):
         text = self.request.get('snippet')
 
         private = self.request.get('private') == 'True'
+        is_markdown = self.request.get('is_markdown') == 'True'
 
         q = Snippet.all()
         q.filter('email = ', email)
@@ -379,10 +429,12 @@ class UpdateSnippet(BaseHandler):
         if snippet:
             snippet.text = text   # just update the snippet text
             snippet.private = private
+            snippet.is_markdown = is_markdown
         else:
             # add the snippet to the db
-            snippet = Snippet(email=email, week=week,
-                              text=text, private=private)
+            snippet = Snippet(created=_TODAY_FN(), email=email, week=week,
+                              text=text,
+                              private=private, is_markdown=is_markdown)
         db.put(snippet)
         db.get(snippet.key())  # ensure db consistency for HRD
 
@@ -457,6 +509,7 @@ class Settings(BaseHandler):
             'logout_url': users.create_logout_url('/'),
             'message': self.request.get('msg'),
             'username': user.email,
+            'is_admin': users.is_current_user_admin(),
             'view_week': _existingsnippet_monday(_TODAY_FN()),
             'user': user,
             'redirect_to': self.request.get('redirect_to', ''),
@@ -482,7 +535,8 @@ class UpdateSettings(BaseHandler):
         user = _get_or_create_user(user_email)
 
         category = self.request.get('category')
-
+        uses_markdown = self.request.get('markdown') == 'yes'
+        private_snippets = self.request.get('private') == 'yes'
         wants_email = self.request.get('reminder_email') == 'yes'
 
         # We want this list to be comma-separated, but people are
@@ -491,7 +545,15 @@ class UpdateSettings(BaseHandler):
         wants_to_view = self.request.get('to_view').replace('\n', ',')
         wants_to_view = wants_to_view.replace(' ', '')
 
-        user.category = category or '(unknown)'
+        # Changing their settings is the kind of activity that unhides
+        # someone who was hidden, unless they specifically ask to be
+        # hidden.
+        is_hidden = self.request.get('is_hidden', 'no') == 'yes'
+
+        user.is_hidden = is_hidden
+        user.category = category or _NULL_CATEGORY
+        user.uses_markdown = uses_markdown
+        user.private_snippets = private_snippets
         user.wants_email = wants_email
         user.wants_to_view = wants_to_view
         db.put(user)
@@ -505,7 +567,88 @@ class UpdateSettings(BaseHandler):
                           % urllib.quote(user_email))
 
 
+class ManageUsers(BaseHandler):
+    """Lets admins delete and otherwise manage users."""
+
+    def get(self):
+        # First, check if the user had clicked on a button.
+        for (name, value) in self.request.params.iteritems():
+            if name.startswith('hide '):
+                email_of_user_to_hide = name[len('hide '):]
+                user = _get_user_or_die(email_of_user_to_hide)
+                user.is_hidden = True
+                user.put()
+                time.sleep(0.1)   # encourage eventual consistency
+                self.redirect('/admin/manage_users?msg=%s+hidden'
+                              % email_of_user_to_hide)
+                return
+            if name.startswith('unhide '):
+                email_of_user_to_unhide = name[len('unhide '):]
+                user = _get_user_or_die(email_of_user_to_unhide)
+                user.is_hidden = False
+                user.put()
+                time.sleep(0.1)   # encourage eventual consistency
+                self.redirect('/admin/manage_users?msg=%s+unhidden'
+                              % email_of_user_to_unhide)
+                return
+            if name.startswith('delete '):
+                email_of_user_to_delete = name[len('delete '):]
+                user = _get_user_or_die(email_of_user_to_delete)
+                db.delete(user)
+                time.sleep(0.1)   # encourage eventual consistency
+                self.redirect('/admin/manage_users?msg=%s+deleted'
+                              % email_of_user_to_delete)
+                return
+
+        # options are 'email', 'creation_time', 'last_snippet_time'
+        sort_by = self.request.get('sort_by', 'creation_time')
+
+        user_q = User.all()
+        results = user_q.fetch(1000)
+
+        # Tuple: (email, is-hidden, creation-time, days since last snippet)
+        user_data = []
+        for user in results:
+            # Get the last snippet for that user.
+            snippets = _snippets_for_user(user.email)
+            if snippets:
+                seconds_since_snippet = (
+                    (_TODAY_FN().date() - snippets[-1].week).total_seconds())
+                weeks_since_snippet = int(
+                    seconds_since_snippet /
+                    datetime.timedelta(days=7).total_seconds())
+            else:
+                weeks_since_snippet = None
+            user_data.append((user.email, user.is_hidden,
+                              user.created, weeks_since_snippet))
+
+        # We have to use 'cmp' here since we want ascending in the
+        # primary key and descending in the secondary key, sometimes.
+        if sort_by == 'email':
+            user_data.sort(lambda x, y: cmp(x[0], y[0]))
+        elif sort_by == 'creation_time':
+            user_data.sort(lambda x, y: -cmp(x[2], y[2]) or cmp(x[0], y[0]))
+        elif sort_by == 'last_snippet_time':
+            user_data.sort(lambda x, y: (-cmp(1000 if x[3] is None else x[3],
+                                              1000 if y[3] is None else y[3])
+                                         or cmp(x[0], y[0])))
+        else:
+            raise ValueError('Invalid sort_by value "%s"' % sort_by)
+
+        template_values = {
+            'logout_url': users.create_logout_url('/'),
+            'message': self.request.get('msg'),
+            'username': _current_user_email(),
+            'is_admin': users.is_current_user_admin(),
+            'view_week': _existingsnippet_monday(_TODAY_FN()),
+            'user_data': user_data,
+            'sort_by': sort_by,
+            }
+        self.render_response('manage_users.html', template_values)
+
+
 # The following two classes are called by cron.
+
 
 def _get_email_to_current_snippet_map(today):
     """Return a map from email to True if they've written snippets this week.
@@ -630,18 +773,16 @@ class SendViewEmail(BaseHandler):
             self._send_to_hipchat()
 
 
-application = webapp2.WSGIApplication([('/', UserPage),
-                                       ('/weekly', SummaryPage),
-                                       ('/update_snippet', UpdateSnippet),
-                                       ('/settings', Settings),
-                                       ('/update_settings', UpdateSettings),
-                                       ('/admin/send_friday_reminder_hipchat',
-                                        SendFridayReminderHipChat),
-                                       ('/admin/send_reminder_email',
-                                        SendReminderEmail),
-                                       ('/admin/send_view_email',
-                                        SendViewEmail),
-                                       ('/admin/test_send_to_hipchat',
-                                        hipchatlib.TestSendToHipchat),
-                                      ],
-                                      debug=True)
+application = webapp2.WSGIApplication([
+    ('/', UserPage),
+    ('/weekly', SummaryPage),
+    ('/update_snippet', UpdateSnippet),
+    ('/settings', Settings),
+    ('/update_settings', UpdateSettings),
+    ('/admin/manage_users', ManageUsers),
+    ('/admin/send_friday_reminder_hipchat', SendFridayReminderHipChat),
+    ('/admin/send_reminder_email', SendReminderEmail),
+    ('/admin/send_view_email', SendViewEmail),
+    ('/admin/test_send_to_hipchat', hipchatlib.TestSendToHipchat),
+    ],
+    debug=True)

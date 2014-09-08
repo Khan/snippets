@@ -29,6 +29,10 @@ handlers:
 - url: .*
   script: snippets.application
 
+skip_files:
+# We load third-party code via top-level symlinks only.
+- third_party/
+
 builtins:
 - remote_api: on
 
