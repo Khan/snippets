@@ -30,8 +30,11 @@ handlers:
   script: snippets.application
 
 skip_files:
+- .git
 # We load third-party code via top-level symlinks only.
 - third_party/
+# We only want the one js file from marked/
+- javascript/marked/(?!marked.min.js).*$
 
 builtins:
 - remote_api: on
