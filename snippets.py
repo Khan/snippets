@@ -627,7 +627,9 @@ class ManageUsers(BaseHandler):
         if sort_by == 'email':
             user_data.sort(lambda x, y: cmp(x[0], y[0]))
         elif sort_by == 'creation_time':
-            user_data.sort(lambda x, y: -cmp(x[2], y[2]) or cmp(x[0], y[0]))
+            user_data.sort(lambda x, y: (-cmp(x[2] or datetime.datetime.min,
+                                              y[2] or datetime.datetime.min)
+                                         or cmp(x[0], y[0])))
         elif sort_by == 'last_snippet_time':
             user_data.sort(lambda x, y: (-cmp(1000 if x[3] is None else x[3],
                                               1000 if y[3] is None else y[3])
