@@ -1055,6 +1055,17 @@ class ManageUsersTestCase(UserTestBase):
         self.assertIn('has_old_snippet@example.com hidden', response.body)
         self.assertIn('value="Unhide"', response.body)
 
+    def testPreserveSortBy(self):
+        response = self.request_fetcher.get(
+            '/admin/manage_users?hide+has_old_snippet@example.com=Hide'
+            '&sort_by=last_snippet_time')
+        if response.status_int in (301, 302, 303, 304):
+            response = response.follow()
+
+        # "Last snippet" shouldn't have a link letting you sort by
+        # last snippet, because it should already be doing so!
+        self.assertIn('<th>Last snippet</th>', response.body)
+
     def testUnhide(self):
         self.request_fetcher.get(
             '/admin/manage_users?hide+has_old_snippet@example.com=Hide')

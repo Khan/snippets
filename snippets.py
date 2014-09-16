@@ -571,6 +571,9 @@ class ManageUsers(BaseHandler):
     """Lets admins delete and otherwise manage users."""
 
     def get(self):
+        # options are 'email', 'creation_time', 'last_snippet_time'
+        sort_by = self.request.get('sort_by', 'creation_time')
+
         # First, check if the user had clicked on a button.
         for (name, value) in self.request.params.iteritems():
             if name.startswith('hide '):
@@ -579,8 +582,8 @@ class ManageUsers(BaseHandler):
                 user.is_hidden = True
                 user.put()
                 time.sleep(0.1)   # encourage eventual consistency
-                self.redirect('/admin/manage_users?msg=%s+hidden'
-                              % email_of_user_to_hide)
+                self.redirect('/admin/manage_users?sort_by=%s&msg=%s+hidden'
+                              % (sort_by, email_of_user_to_hide))
                 return
             if name.startswith('unhide '):
                 email_of_user_to_unhide = name[len('unhide '):]
@@ -588,20 +591,17 @@ class ManageUsers(BaseHandler):
                 user.is_hidden = False
                 user.put()
                 time.sleep(0.1)   # encourage eventual consistency
-                self.redirect('/admin/manage_users?msg=%s+unhidden'
-                              % email_of_user_to_unhide)
+                self.redirect('/admin/manage_users?sort_by=%s&msg=%s+unhidden'
+                              % (sort_by, email_of_user_to_unhide))
                 return
             if name.startswith('delete '):
                 email_of_user_to_delete = name[len('delete '):]
                 user = _get_user_or_die(email_of_user_to_delete)
                 db.delete(user)
                 time.sleep(0.1)   # encourage eventual consistency
-                self.redirect('/admin/manage_users?msg=%s+deleted'
-                              % email_of_user_to_delete)
+                self.redirect('/admin/manage_users?sort_by=%s&msg=%s+deleted'
+                              % (sort_by, email_of_user_to_delete))
                 return
-
-        # options are 'email', 'creation_time', 'last_snippet_time'
-        sort_by = self.request.get('sort_by', 'creation_time')
 
         user_q = User.all()
         results = user_q.fetch(1000)
