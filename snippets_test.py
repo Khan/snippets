@@ -705,6 +705,19 @@ class SetAndViewSnippetsTestCase(UserTestBase):
             '>visit <a href="http://foo.com">http://foo.com</a><',
             response.body, 0)
 
+    def testEditMode(self):
+        url = '/update_snippet?week=02-20-2012&snippet=hello'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/?u=user@example.com')
+        self.assertIn('Make snippet private', response.body)
+
+        response = self.request_fetcher.get('/?u=user@example.com&edit=1')
+        self.assertIn('Make snippet private', response.body)
+
+        response = self.request_fetcher.get('/?u=user@example.com&edit=0')
+        self.assertNotIn('Make snippet private', response.body)
+
 
 class ShowCorrectWeekTestCase(UserTestBase):
     """Test we show the right snippets for edit/view based on day of week."""
