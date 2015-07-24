@@ -33,6 +33,7 @@ from google.appengine.ext import db
 from google.appengine.ext import testbed
 import webtest   # may need to do 'pip install webtest'
 
+import models
 import snippets
 
 
@@ -116,7 +117,7 @@ class PostTestCase(SnippetsTestBase):
         self.login('user@example.com')
         url = '/update_snippet'
         params = {
-            'week': '02-20-2012', 
+            'week': '02-20-2012',
             'snippet': 'my inspired snippet'
         }
         response = self.request_fetcher.post(url, params, status=200)
@@ -126,7 +127,7 @@ class PostTestCase(SnippetsTestBase):
         self.login('user@example.com')
         url = '/update_snippet'
         params = {
-            'week': '02-20-2012', 
+            'week': '02-20-2012',
             'snippet': 'my fallacious snippet',
             'u': 'joeuser@example.com'
         }
@@ -137,7 +138,7 @@ class PostTestCase(SnippetsTestBase):
     def testPostSnippetNotLoggedIn(self):
         url = '/update_snippet'
         params = {
-            'week': '02-20-2012', 
+            'week': '02-20-2012',
             'snippet': 'my fallacious snippet',
             'u': 'user@example.com'
         }
@@ -637,7 +638,7 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
         # Now delete user 2
-        u = snippets.User.all().filter('email =', '2@example.com').get()
+        u = models.User.all().filter('email =', '2@example.com').get()
         u.delete()
 
         response = self.request_fetcher.get('/weekly?week=02-20-2012')
@@ -1242,7 +1243,7 @@ class SendingEmailTestCase(UserTestBase):
 
         # We'll do 500 users.  Rather than go through the request
         # API, we modify the db directly; it's much faster.
-        users = [snippets.User(email='snippets%d@example.com' % i)
+        users = [models.User(email='snippets%d@example.com' % i)
                  for i in xrange(500)]
         db.put(users)
 
