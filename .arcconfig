@@ -1,0 +1,5 @@
+{
+    "project_id": "snippets",
+    "conduit_uri": "https://phabricator.khanacademy.org/",
+    "lint.engine": "ArcanistConfigurationDrivenLintEngine"
+}
