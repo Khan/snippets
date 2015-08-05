@@ -2,7 +2,7 @@
 <html>
 <head>
   <title>Snippets for the week starting {{view_week|readable_date}}</title>
-  <link rel="stylesheet" type="text/css" href="javascript/snippets.css">
+  <link rel="stylesheet" type="text/css" href="static/snippets.css">
 </head>
 
 <body>
@@ -38,8 +38,8 @@ Snippets for the week starting {{view_week|readable_date}}
 
 {% endfor %}
 
-<script src="javascript/jquery-1.8.2.js"></script>
-<script src="javascript/marked/marked.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/marked/0.3.2/marked.min.js"></script>
 <script>
       marked.setOptions({sanitize: true});
       $(".markdown_snippet").each(function(i, v) {
