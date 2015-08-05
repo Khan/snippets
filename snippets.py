@@ -41,7 +41,10 @@ if _SEND_TO_HIPCHAT:
 _TODAY_FN = datetime.datetime.now
 
 
-jinja2.default_config['template_path'] = os.path.dirname(__file__)
+jinja2.default_config['template_path'] = os.path.join(
+    os.path.dirname(__file__),
+    "templates"
+)
 jinja2.default_config['filters'] = {
     'readable_date': (
         lambda value: value.strftime('%B %d, %Y').replace(' 0', ' ')),
@@ -579,7 +582,7 @@ class SendReminderEmail(BaseHandler):
     def _send_mail(self, email):
         template_values = {}
         _send_snippets_mail(email, 'Weekly snippets due today at 5pm',
-                            'reminder_email', template_values)
+                            'reminder_email.txt', template_values)
 
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
@@ -601,7 +604,7 @@ class SendViewEmail(BaseHandler):
     def _send_mail(self, email, has_snippets):
         template_values = {'has_snippets': has_snippets}
         _send_snippets_mail(email, 'Weekly snippets are ready!',
-                            'view_email', template_values)
+                            'view_email.txt', template_values)
 
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
