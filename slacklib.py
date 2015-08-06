@@ -1,0 +1,488 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
+"""Snippets server -> Slack integration.
+
+At Khan Academy we use Slack for messaging!  This provides Slack
+integration with the snippet server, as well prototype CLI style
+interaction with snippets via the Slack "slash commands" integration.
+
+Talking to the Slack Web API requires a token.  The admin must
+set this token by creating a file called 'slack-webapi.cfg' in this
+directory.  It should look like this:
+--- vvv contents below vvv---
+token = 01234567890abcdef
+--- ^^^ contents above ^^^---
+except instead of '01234567890abcdef', it should have the token value.
+
+Additionally, the "slash commands" integration in Slack will post a token with
+each request.  We check this token for security reasons, so we get that in
+'slack-slash.cfg' in a similar fashion.
+
+Note that there are no quotes, and there must be spaces around the =,
+or this won't work.
+
+Do not commit *.cfg into git!  It's a secret.
+"""
+
+import datetime
+import json
+import logging
+import re
+import os
+import textwrap
+import urllib
+import urllib2
+import webapp2
+
+from google.appengine.ext import db
+from google.appengine.api import memcache
+
+import models
+import util
+
+# the Slack slash command token is sent to us by the Slack server with every
+# incoming request.  We should verify it for security. To make it easier to
+# develop, you can disable this while testing.
+_SLACK_SLASH_TOKEN = None
+_REQUIRE_SLASH_TOKEN = True
+
+# the Slack Web API token is required to make outgoing API calls to the Slack
+# API with full permissions to the KhanAcademy team (needed to retrieve email
+# addresses for the users and/or to post globally).
+_SLACK_WEBAPI_TOKEN = None
+
+# This allows mocking in a different day, for testing.
+_TODAY_FN = datetime.datetime.now
+
+# The web URL we point people to as the base for web operations
+_WEB_URL = 'http://' + os.environ.get('SERVER_NAME', 'localhost')
+
+
+def _read_token_from_file(filename):
+    config = open(filename).read().strip()
+    if not config.startswith('token = '):
+        raise ValueError('%s should look like "token = <value>\n"')
+    return config[len('token = '):]
+
+
+def slack_init():
+    """Initialize slack, returns true if it worked ok."""
+    global _SLACK_SLASH_TOKEN
+    global _SLACK_WEBAPI_TOKEN
+
+    try:
+        _SLACK_WEBAPI_TOKEN = _read_token_from_file('slack-webapi.cfg')
+        if _REQUIRE_SLASH_TOKEN:
+            _SLACK_SLASH_TOKEN = _read_token_from_file('slack-slash.cfg')
+        logging.info('Loaded Slack integration')
+        return True
+    except IOError:
+        logging.error('Unable to find needed config file; disabling Slack')
+        return False
+    except ValueError, why:
+        logging.error('%s; disabling Slack', why)
+        return False
+
+
+def _web_api(api_method, payload):
+    """Send a payload to the Slack Web API, automatically inserting token.
+
+    Raises a ValueError if something goes wrong.
+    Returns a dictionary with the response.
+    """
+    payload.setdefault('token', _SLACK_WEBAPI_TOKEN)
+    uri = 'https://slack.com/api/' + api_method
+    r = urllib2.urlopen(uri, urllib.urlencode(payload))
+
+    # check return code for server errors
+    if r.getcode() != 200:
+        raise ValueError(r.read())
+    # parse the JSON...
+    # slack web API always returns either `"ok": true` or `"error": "reason"`
+    reply = json.loads(r.read())
+    if not reply['ok']:
+        raise ValueError('Slack error: %s' % reply['error'])
+    return reply
+
+
+def _get_user_email(uid):
+    """Retrieve the email address for a specific userid from the Slack Web API.
+
+    Raises ValueError if could not be retrieved.
+    """
+    reply = _web_api('users.info', {'user': uid})  # possible ValueError
+    email = reply.get('user', {}).get('profile', {}).get('email', None)
+    if email is None:
+        raise ValueError('Slack user profile did not have email')
+    return email
+
+
+def _get_user_email_cached(uid, force_refresh=False):
+    """Retrieve the email address for a specific user id, with a cache.
+
+    Results are stored in memcache for up to a day.
+
+    If force_refresh parameter is specified, cached data will be refreshed.
+
+    Raises ValueError if could not be retrieved.
+    """
+    key = 'slack_profile_email_' + uid
+    cached_data = memcache.get(key)
+    if (cached_data is None) or force_refresh:
+        logging.debug("cache miss/refresh for slack email lookup %s", uid)
+        email = _get_user_email(uid)  # possible ValueError
+        if not memcache.set(key=key, value=email, time=86400):
+            logging.error('memcache set failed!')
+        return email
+    else:
+        logging.debug("cache hit for slack email lookup %s", uid)
+        return cached_data
+
+
+def send_to_slack_channel(channel, msg):
+    """Send a plaintext message to a Slack channel."""
+    try:
+        _web_api('chat.postMessage', {
+            'channel': channel,
+            'text': msg,
+            'username': 'Snippets',
+            'icon_emoji': ':pencil:',
+            'unfurl_links': False,    # no link previews, please
+        })
+    except ValueError, why:
+        logging.error('Failed sending message to slack: %s', why)
+
+
+###############################
+### SLASH COMMANDS ARE FUN! ###
+###############################
+
+def command_usage():
+    return textwrap.dedent("""
+    ```
+    /snippets                displays your current snippets
+    /snippets list           displays your current snippets
+    /snippets last           displays your snippets from last week
+    /snippets add [item]     adds an item to your weekly snippets
+    /snippets del [n]        removes snippet number N
+    /snippets dump           shows your snippets list unformatted
+    /snippets help           display this help screen
+    ```
+    """)
+
+
+def command_help():
+    """Return the help string for slash commands."""
+    return (
+        "I can help you manage your "
+        "<{}|weekly snippets>! :pencil:".format(_WEB_URL) +
+        command_usage()
+    )
+
+
+def _no_user_error(user_email):
+    return (
+        "You don't appear to have a snippets account yet!\n"
+        "To create one, go to {}\n"
+        "We looked for your Slack email address: {}"
+        .format(_WEB_URL, user_email)
+    )
+
+
+def _user_snippet(user_email, weeks_back=0):
+    """Return the user's most recent Snippet.
+
+    If one doesn't exist, one will be automatically filled from the template
+    (but not saved).
+
+    By using the optional `weeks_back` parameter, you can step backwards in
+    time. Note that if you go back before the user's *first* snippet, they will
+    not be filled (the default filling seems to only go forwardwise in time),
+    and an IndexError will be raised.
+
+    Raises an IndexError if requested snippet week comes before user birth.
+    Raises ValueError if user couldn't be found.
+    """
+    account = util.get_user_or_die(user_email)  # can raise ValueError
+    user_snips = util.snippets_for_user(user_email)
+    logging.debug(
+        'User %s got snippets from db: %s', user_email, len(user_snips)
+    )
+
+    filled_snips = util.fill_in_missing_snippets(user_snips, account,
+                                                 user_email, _TODAY_FN())
+    logging.debug(
+        'User %s snippets *filled* to: %s', user_email, len(filled_snips)
+    )
+
+    index = (-1) - weeks_back
+    return filled_snips[index]
+
+
+def _snippet_items(snippet):
+    """Return all markdown items in the snippet text.
+
+    For this we expect it the snippet to contain *nothing* but a markdown list.
+    We do not support "indented" list style, only one item per linebreak.
+
+    Raises SyntaxError if snippet not in proper format (e.g. contains
+        anything other than a markdown list).
+    """
+    unformatted = snippet.text.strip()
+
+    # treat default null text value as empty list
+    if unformatted == models.NULL_SNIPPET_TEXT:
+        return []
+
+    # parse out all markdown list items
+    items = re.findall(r'^[-*+] +(.*)$', unformatted, re.MULTILINE)
+
+    # if there were any lines that didn't yield an item, assume there was
+    # something we didn't parse. since we never want to lose existing data
+    # for a user, this is an error condition.
+    if len(items) < len(unformatted.splitlines()):
+        raise SyntaxError('unparsed lines in user snippet: %s' % unformatted)
+
+    return items
+
+
+def _format_snippet_items(items):
+    """Format snippet items for display."""
+    fi = ['> :pushpin: *[{}]* {}'.format(i, x) for i, x in enumerate(items)]
+    return "\n".join(fi)
+
+
+def command_list(user_email):
+    """Return the users current snippets for the week in pretty format."""
+    try:
+        items = _snippet_items(_user_snippet(user_email))
+    except ValueError:
+        return _no_user_error(user_email)
+    except SyntaxError:
+        return (
+            "*Your snippets are not in a format I understand.* :cry:\n"
+            "I support markdown lists only, "
+            "for more information see `/snippets help` ."
+        )
+
+    if not items:
+        return (
+            "*You don't have any snippets for this week yet!* :speak_no_evil:\n"
+            ":pencil: Use `/snippets add` to create one, or try `/snippets help` ."
+        )
+
+    return textwrap.dedent(
+        "*Your snippets for the week so far:*\n" +
+        _format_snippet_items(items)
+    )
+
+
+def command_last(user_email):
+    """Return the users snippets for last week in a pretty format."""
+    try:
+        items = _snippet_items(_user_snippet(user_email, 1))
+    except ValueError:
+        return _no_user_error(user_email)
+    except IndexError:
+        return "*You didn't have any snippets last week!* :speak_no_evil:"
+    except SyntaxError:
+        return (
+            "*Your snippets last week are not in a format I understand.* :cry:\n"
+            "I support markdown lists only, "
+            "for more information see `/snippets help` ."
+        )
+
+    if not items:
+        return "*You didn't have any snippets last week!* :speak_no_evil:"
+
+    return textwrap.dedent(
+        "*Your snippets for last week:*\n" +
+        _format_snippet_items(items)
+    )
+
+
+def _linkify_usernames(text):
+    """Slack wants @usernames to be surrounded in <> to be highlighted."""
+    return re.sub(r'(?<!\<)(@[\w_]+)', r'<\1>', text)
+
+
+def _markdown_list(items):
+    """Transform a list of items into a markdown list."""
+    return "\n".join(["- {}".format(x) for x in items])
+
+
+def command_add(user_email, new_item):
+    """Add a new item to the user's current snippet list."""
+    if not new_item:
+        return (
+            ":grey_question: Urm, *what* do you want me to add exactly?\n"
+            "Usage: `/snippets add [item]`"
+        )
+
+    items = []
+    try:
+        snippet = _user_snippet(user_email)      # may raise ValueError
+        items = _snippet_items(snippet)          # may raise SyntaxError
+    except ValueError:
+        return _no_user_error(user_email)
+    except SyntaxError:
+        return (
+            "*Your snippets are not in a format I understand.* :cry:\n"
+            "So I can't add to them! FYI I support markdown lists only, "
+            "for more information see `/snippets help` ."
+        )
+
+    new_item = _linkify_usernames(new_item)
+    items.append(new_item)
+    snippet.text = _markdown_list(items)
+    snippet.is_markdown = True
+
+    # TODO(mroth): we should abstract out DB writes to a library wrapper
+    db.put(snippet)
+    db.get(snippet.key())    # ensure db consistency for HRD
+    return "Added *{}* to your weekly snippets.".format(new_item)
+
+
+def command_del(user_email, args):
+    """Delete an item at an index from the users current snippets.
+
+    The `args` parameter should be the args passed to the command.  We
+    only expect one (for the index) but the user might not pass it, or pass
+    extra things (which is an error condition for now).
+    """
+    syntax_err_msg = (
+        ":grey_question: Urm, *what* do you want me to delete exactly?\n"
+        "Usage: `/snippets del [n]`"
+    )
+    if not args or len(args) != 1:
+        return syntax_err_msg
+
+    try:
+        index = int(args[0])
+    except ValueError:
+        return syntax_err_msg
+
+    items = []
+    try:
+        snippet = _user_snippet(user_email)      # may raise ValueError
+        items = _snippet_items(snippet)          # may raise SyntaxError
+    except ValueError:
+        return _no_user_error(user_email)
+    except SyntaxError:
+        return (
+            "*Your snippets are not in a format I understand.* :cry:\n"
+            "So I can't delete from them! FYI I support markdown lists only, "
+            "for more information see `/snippets help` ."
+        )
+
+    try:
+        removed_item = items[index]
+        del items[index]
+    except IndexError:
+        return (
+            ":grey_question: You don't have anything at that index?!\n" +
+            _format_snippet_items(items)
+        )
+
+    snippet.text = _markdown_list(items)
+    snippet.is_markdown = True
+
+    db.put(snippet)
+    db.get(snippet.key())    # ensure db consistency for HRD
+    return "Removed *{}* from your weekly snippets.".format(removed_item)
+
+
+def command_dump(user_email):
+    """Return user's most recent snippet unformatted."""
+    try:
+        snippet = _user_snippet(user_email)
+    except ValueError:
+        return _no_user_error(user_email)
+    return "```{}```".format(snippet.text)
+
+
+class SlashCommand(webapp2.RequestHandler):
+    def post(self):
+        """Process an incoming slash command from Slack.
+
+        Incoming request POST looks like the following (example taken from
+        https://api.slack.com/slash-commands):
+            token=gIkuvaNzQIHg97ATvDxqgjtO
+            team_id=T0001
+            team_domain=example
+            channel_id=C2147483705
+            channel_name=test
+            user_id=U2147483697
+            user_name=Steve
+            command=/weather
+            text=94070
+        """
+        req, res = self.request, self.response
+
+        # verify slash API post token for security
+        if _REQUIRE_SLASH_TOKEN:
+            token = req.get('token')
+            if token != _SLACK_SLASH_TOKEN:
+                logging.error("POST MADE WITH INVALID TOKEN")
+                res.write("OH NO YOU DIDNT! Security issue plz contact admin.")
+                return
+
+        user_name = req.get('user_name')
+        user_id = req.get('user_id')
+        text = req.get('text')
+
+        try:
+            user_email = _get_user_email_cached(user_id)
+        except ValueError:
+            logging.error("Failed getting %s email from Slack API", user_name)
+            res.write(
+                "Error getting your email address from the Slack API! "
+                "Please contact an admin and report the time of this error."
+            )
+            return
+
+        words = text.strip().split()
+        if not words:
+            logging.info('null (list) command from user %s', user_name)
+            res.write(command_list(user_email))
+        else:
+            cmd, args = words[0], words[1:]
+            if cmd == 'help':
+                logging.info('help command from user %s', user_name)
+                res.write(command_help())
+            elif cmd == 'whoami':
+                # undocumented command to echo user email back
+                logging.info('whoami command from user %s', user_name)
+                res.write(user_email)
+            elif cmd == 'whoami!':
+                # whoami! forces a refresh of cache, for debugging
+                logging.info('whoami! command from user %s', user_name)
+                logging.info('whoami! potential cached email for %s: %s',
+                             user_name, user_email)
+                refreshed = _get_user_email_cached(user_id, force_refresh=True)
+                logging.info('whoami! refreshed email for %s: %s',
+                             user_name, refreshed)
+                res.write(refreshed)
+            elif cmd == 'list':
+                # this is the same as the null command, but support for UX
+                logging.info('list command from user %s', user_name)
+                res.write(command_list(user_email))
+            elif cmd == 'last':
+                logging.info('last command from user %s', user_name)
+                res.write(command_last(user_email))
+            elif cmd == 'add':
+                logging.info('add command from user %s', user_name)
+                res.write(command_add(user_email, " ".join(args)))
+            elif cmd == 'del':
+                logging.info('del command from user %s', user_name)
+                res.write(command_del(user_email, args))
+            elif cmd == 'dump':
+                logging.info('dump command from user %s', user_name)
+                res.write(command_dump(user_email))
+            else:
+                logging.info('unknown command %s from user %s', cmd, user_name)
+                res.write(
+                    "I don't understand what you said! " +
+                    "Perhaps you meant one of these?" + command_usage()
+                )

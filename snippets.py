@@ -37,6 +37,17 @@ if _SEND_TO_HIPCHAT:
         logging.error('Unable to initialize HipChat; not sending msgs there')
 
 
+# Enable the slack integration?
+_ENABLE_SLACK = True   # enable overall slack integration, incl. slash cmds
+_SEND_TO_SLACK = True  # send reminder messages to Slack
+if _ENABLE_SLACK:
+    import slacklib
+    if not slacklib.slack_init():
+        _SEND_TO_SLACK = False
+        _ENABLE_SLACK = False
+        logging.error('Unable to initialize Slack; not sending msgs there')
+
+
 # This allows mocking in a different day, for testing.
 _TODAY_FN = datetime.datetime.now
 
@@ -121,6 +132,8 @@ def _send_to_chat(msg):
     """Sends a message to the main room/channel for active chat integrations."""
     if _SEND_TO_HIPCHAT:
         hipchatlib.send_to_hipchat_room('Khan Academy', msg)
+    if _SEND_TO_SLACK:
+        slacklib.send_to_slack_channel('#khan-academy', msg)
 
 
 class BaseHandler(webapp2.RequestHandler):
@@ -629,3 +642,5 @@ application = webapp2.WSGIApplication([
     ('/admin/test_send_to_hipchat', hipchatlib.TestSendToHipchat),
     ],
     debug=True)
+if _ENABLE_SLACK:
+    application.router.add(('/slack', slacklib.SlashCommand))
