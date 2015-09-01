@@ -25,7 +25,7 @@ import models
 import util
 
 # the URL to use for notifications directing people to this site
-_URL = 'http://weekly-snippets.appspot.com'
+_URL = 'https://weekly-snippets.appspot.com'
 
 
 # Have the cron jobs send to HipChat in addition to email?
