@@ -1,4 +1,3 @@
-
 /* Navigation */
 .navigation {
     text-align: right;
@@ -25,4 +24,36 @@
 }
 .private_snippet {
     color: #888888;
+}
+
+/* Manage users */
+table {
+    border-collapse: collapse;
+}
+table tr:nth-child(odd) {
+    background-color: #f1f1f1;
+}
+table tr:nth-child(even) {
+    background-color: #ffffff;
+}
+table th {
+    color: #ffffff;
+    background-color: #555555;
+    border: 1px solid #555555;
+    padding: 3px;
+    vertical-align: top;
+    text-align: left;
+}
+table th a:link,
+table th a:visited {
+    color: #ffffff;
+}
+table th a:hover,
+table th a:active {
+    color: #EE872A;
+}
+table td {
+    border:1px solid #d4d4d4;
+    vertical-align: top;
+    padding: 5px;
 }

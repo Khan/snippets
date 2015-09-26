@@ -159,6 +159,7 @@ class UserPage(BaseHandler):
 
         if not user:
             template_values = {
+                'new_user': True,
                 'login_url': users.create_login_url(self.request.uri),
                 'logout_url': users.create_logout_url('/'),
                 'username': user_email,

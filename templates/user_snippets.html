@@ -1,12 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Snippets for {{username}}</title>
-  <link rel="stylesheet" type="text/css" href="static/snippets.css">
-</head>
-
-<body>
-
+{%- set title='Snippets for ' + username -%}
 {% include "header.html" %}
 
 <h2>Snippets for {{username}}</h2>
@@ -83,5 +75,5 @@
          v.innerHTML = marked(v.innerHTML);
       });
 </script>
-</body>
-</html>
+
+{% include "footer.html" %}

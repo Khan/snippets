@@ -1,12 +1,7 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>User settings for {{username}}</title>
-</head>
-
-<body>
-
-{% include "header.html" %}
+{%- block page_header -%}
+  {%- set title='User settings for ' + username -%}
+  {% include "header.html" %}
+{%- endblock page_header -%}
 
 <h2>User settings for {{username}}</h2>
 
@@ -56,5 +51,4 @@
 
 </form>
 
-</body>
-</html>
+{% include "footer.html" %}

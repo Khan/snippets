@@ -1,10 +1,7 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>New User</title>
-</head>
+{%- set title='New user' -%}
+{% include "header.html" %}
 
-<body>
+
 <h2>New User</h2>
 
 <p>We have no records for <strong>{{username}}</strong>.  If you are a new
@@ -16,5 +13,4 @@
   or <a href="{{logout_url}}">log out</a> and log back in
   as the correct user.</p>
 
-</body>
-</html>
+{% include "footer.html" %}

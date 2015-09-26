@@ -1,3 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>{{title}}</title>
+  <link rel="stylesheet" type="text/css" href="/static/snippets.css">
+</head>
+
+<body>
+
+{% if not new_user %}
 <div class="navigation">
 <a href="/settings?u={{username}}">user settings</a> |
 {% if is_admin %} <a href="/admin/manage_users">manage users (admin)</a> | {% endif %}
@@ -23,3 +33,4 @@
 </form>
 
 <hr>
+{% endif %}
