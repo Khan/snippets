@@ -1,3 +1,28 @@
-.text_snippet { white-space: pre; font-family: "Lucida Console", Monaco, monospace; }
-.markdown_snippet { font-family: "Lucida Console", Monaco, monospace; }
-.private_snippet { color: #888888; }
+
+/* Navigation */
+.navigation {
+    text-align: right;
+    font-size: 14px;
+}
+
+/* Alert messages */
+.page-alert {
+    color: red;
+    font-size: 36px;
+}
+.snippet-alert {
+    color: red;
+    font-size: 14px;
+}
+
+/* Snippets */
+.text_snippet {
+    white-space: pre;
+    font-family: "Lucida Console", Monaco, monospace;
+}
+.markdown_snippet {
+    font-family: "Lucida Console", Monaco, monospace;
+}
+.private_snippet {
+    color: #888888;
+}

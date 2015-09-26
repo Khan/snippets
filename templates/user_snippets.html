@@ -20,22 +20,23 @@
         &nbsp; <input type="submit" value="Save" class="save-button">
         &nbsp; <button class="undo-button">undo</button>
         {% if snippet.text == null_snippet_text and snippet.week == one_week_ago %}
-        <font color="red" size="-1">Due today!</font>
+        <span class="snippet-alert">Due today!</span>
         {% endif %}
         {% if snippet.text == null_snippet_text and snippet.week == eight_days_ago %}
-        <font color="red" size="-1">OVERDUE!</font>
+        <span class="snippet-alert">OVERDUE!</spanf>
         {% endif %}
     </h3>
 
     <input type="hidden" name="week" value="{{snippet.week|iso_date}}">
     <input type="hidden" name="u" value="{{username}}">
     {% if snippet.text == null_snippet_text and user.category == null_category %}
-    <font color="red" size="-1">
-      WARNING: Snippet will go in the "{{null_category}}" category.
-    </font>
-    <a href="/settings?msg=Set+'Category'+below,+then+click+'Save.'&redirect_to=snippet_entry"
-       >Set your snippet category!</a>
-    <br>
+    <div>
+      <span class="snippet-alert">
+        WARNING: Snippet will go in the "{{null_category}}" category.
+      </span>
+      <a href="/settings?msg=Set+'Category'+below,+then+click+'Save.'&redirect_to=snippet_entry"
+         >Set your snippet category!</a>
+    </div>
     {% endif %}
     <label>
     <input type="checkbox" name="private" value="True"

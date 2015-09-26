@@ -1,25 +1,25 @@
-<p><font size="-1"><div align="right">
+<div class="navigation">
 <a href="/settings?u={{username}}">user settings</a> |
 {% if is_admin %} <a href="/admin/manage_users">manage users (admin)</a> | {% endif %}
 <a href="{{logout_url}}">logout</a>
-</div></font></p>
+</div>
 
 {% if message %}
-<font color="red" size="+2"><b>{{message}}</b></font><br><br>
+<div class="page-alert"><b>{{message}}</b></div>
 {% endif %}
 
 <form action="/weekly" method="get">
-  <i>See snippets for the week starting
-  <input type="textbox" size="10" name="week" value="{{view_week|iso_date}}">
+  <p>See snippets for the week starting
+  <input type="text" name="week" value="{{view_week|iso_date}}">
   <input type="submit" value="View">
-  </i>
+  </p>
 </form>
 
 <form action="/" method="get">
-  <i>See snippets for
-  <input type="textbox" size="30" name="u" value="{{username}}">
+  <p>See snippets for
+  <input type="text" name="u" value="{{username}}">
   <input type="submit" value="View">
-  </i>
+  </p>
 </form>
 
 <hr>
