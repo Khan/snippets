@@ -8,10 +8,13 @@
 <body>
 
 {% if not new_user %}
+<div class="header">
+<a href="/">Weekly Snippets</a>
 <div class="navigation">
 <a href="/settings?u={{username}}">user settings</a> |
 {% if is_admin %} <a href="/admin/manage_users">manage users (admin)</a> | {% endif %}
 <a href="{{logout_url}}">logout</a>
+</div>
 </div>
 
 {% if message %}

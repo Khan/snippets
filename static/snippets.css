@@ -1,6 +1,6 @@
 /* Navigation */
 .navigation {
-    text-align: right;
+    float: right;
     font-size: 14px;
 }
 
