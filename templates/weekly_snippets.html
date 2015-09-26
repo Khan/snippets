@@ -1,15 +1,15 @@
 {%- set title='Snippets for the week starting ' + view_week|readable_date -%}
 {% include "header.html" %}
 
-<h2>
+<h1>
 <a href="/weekly?week={{prev_week|iso_date}}">&laquo;</a>
 Snippets for the week starting {{view_week|readable_date}}
 <a href="/weekly?week={{next_week|iso_date}}">&raquo;</a>
-</h2>
+</h1>
 
 {% for category_and_snippets in categories_and_snippets %}
 
-  <h3> {{category_and_snippets.0}} </h3>
+  <h2> {{category_and_snippets.0}} </h2>
 
     {% for snippet in category_and_snippets.1 %}
       <div class="snippet">

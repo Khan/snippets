@@ -1,14 +1,14 @@
 {%- set title='Snippets for ' + username -%}
 {% include "header.html" %}
 
-<h2>Snippets for {{username}}</h2>
+<h1>Snippets for {{username}}</h1>
 
 {% for snippet in snippets %}
   <div class="snippet">
   {% if editable %}
     <form action="/update_snippet" method="get">
 
-    <h3>Snippets for the week starting {{snippet.week|readable_date}}
+    <h2>Snippets for the week starting {{snippet.week|readable_date}}
         &nbsp; <input type="submit" value="Save" class="save-button">
         &nbsp; <button class="undo-button">undo</button>
         {% if snippet.text == null_snippet_text and snippet.week == one_week_ago %}
@@ -17,7 +17,7 @@
         {% if snippet.text == null_snippet_text and snippet.week == eight_days_ago %}
         <span class="snippet-alert">OVERDUE!</spanf>
         {% endif %}
-    </h3>
+    </h2>
 
     <input type="hidden" name="week" value="{{snippet.week|iso_date}}">
     <input type="hidden" name="u" value="{{username}}">
@@ -30,18 +30,20 @@
          >Set your snippet category!</a>
     </div>
     {% endif %}
+    <div class="snippet-setting">
     <label>
     <input type="checkbox" name="private" value="True"
            {% if snippet.private %}checked{% endif %}>
     Make snippet private (only viewable by people in the domain <i>{{domain}}</i>)
     </label>
-    <br>
+    </div>
+    <div class="snippet-setting">
     <label>
     <input type="checkbox" name="is_markdown" value="True"
            {% if snippet.is_markdown %}checked{% endif %}>
     Snippet is written in <a href="http://daringfireball.net/projects/markdown/syntax">markdown syntax</a>
     </label>
-    <br>
+    </div>
     <textarea name="snippet" rows="6" cols="80">{{snippet.text}}</textarea>
     <div class="markdown_preview" style="display:none">
       <i>Preview:</i>
@@ -51,7 +53,7 @@
     </div>
     </form>
   {% else %}
-    <h3>Snippets for the week starting {{snippet.week|readable_date}}</h3>
+    <h2>Snippets for the week starting {{snippet.week|readable_date}}</h2>
 
     {% if snippet.is_markdown %}
     <div class="markdown_snippet
