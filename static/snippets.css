@@ -1,30 +1,219 @@
+body {
+    font-family: "Open Sans", sans-serif;
+    font-size: 12px;
+    padding: 0;
+    margin: 0;
+}
+
 /* Navigation */
+.header {
+    background: #222;
+    color: rgba(255, 255, 255, 0.51);
+    padding: 10px 40px;
+}
+.header a,
+.header a:hover {
+    color: #fff;
+    text-decoration: none;
+}
+.logo {
+    font-size: 24px;
+}
 .navigation {
     float: right;
-    font-size: 14px;
+}
+.navigation-link {
+    display: inline-block;
+    line-height: 24px;
+    opacity: 0.8;
+    padding: 4px 8px;
+}
+.navigation-link:hover,
+.navigation-link:focus {
+    opacity: 1;
+}
+.sub-header {
+    background: #eee;
+    border-bottom: 1px solid #ccc;
+    line-height: 2;
+    padding: 10px 40px;
+}
+.sub-header input[type="text"] {
+    padding: 2px 4px;
+}
+.sub-header input[type="submit"] {
+    padding: 3px 10px;
+}
+
+/* These widths look nice and mean the boxes line up */
+.sub-header-filter-date {
+    width: 70px;
+}
+.sub-header-filter-user {
+    width: 170px;
 }
 
 /* Alert messages */
 .page-alert {
-    color: red;
-    font-size: 36px;
+    /* Green background and darker green border/text */
+    background: #cae2ae;
+    border: 1px solid #639b24;
+    border-width: 1px 0;
+    color: #639b24;
+    font-size: 16px;
+    margin-top: 10px;
+    padding: 10px 40px;
 }
 .snippet-alert {
     color: red;
     font-size: 14px;
 }
+.snippet-warning {
+    /* Red background and darker red border/text */
+    background: #fbe2e0;
+    border: 1px solid #c52717;
+    color: #c52717;
+    margin-bottom: 10px;
+    padding: 10px 20px;
+}
+
+/* Generic styles */
+a {
+    /* Blue links */
+    color: #337ab7;
+}
+a:hover,
+a:focus {
+    /* Darker blue for hovered/focused links */
+    color: #23527c;
+}
+/* Headings */
+h1 {
+    font-weight: normal;
+}
+/* Buttons */
+.button {
+    background: #fff;
+    border: 1px solid #bbb;
+    border-radius: 4px;
+    color: #222;
+    padding: 5px 10px;
+}
+.button:hover,
+.button:focus {
+    background: #eee;
+    border-color: #aaa;
+    cursor: pointer;
+}
+.button[disabled] {
+    background: #eee;
+    border-color: #ccc;
+    color: #aaa;
+    cursor: not-allowed;
+}
+
+/* Content */
+.page-content {
+    padding: 10px 40px;
+}
 
 /* Snippets */
-.text_snippet {
+.snippet {
+    border-top: 1px solid #ccc;
+    margin-bottom: 10px;
+    padding: 10px 0;
+}
+.snippet-header {
+    margin-bottom: 10px;
+}
+.snippet-header h2 {
+    display: inline-block;
+    margin: 0;
+}
+.snippet-actions {
+    float: right;
+}
+.save-button:not(:disabled) {
+    /* Green button background */
+    background-color: #639b24;
+    border-color: #639b24;
+    color: #fff;
+}
+.save-button:not(:disabled):hover {
+    /* Darker green button background on hover */
+    background-color: #568522;
+    border-color: #568522;
+}
+.snippet-setting {
+    color: #888;
+    margin-bottom: 4px;
+}
+.snippet-setting a {
+    color: #666;
+}
+.snippet-textarea {
+    box-sizing: border-box;
+    font-size: inherit;
+    margin-top: 10px;
+    padding: 10px 10px;
+}
+.snippet-textarea,
+.snippet-text,
+.snippet-text-markdown {
+    font-family: "Lucida Console", Monaco, monospace;
+}
+.snippet-text {
+    overflow-x: auto;
+    padding-bottom: 10px;
     white-space: pre;
-    font-family: "Lucida Console", Monaco, monospace;
 }
-.markdown_snippet {
-    font-family: "Lucida Console", Monaco, monospace;
+.snippet-text-markdown ul {
+    margin: 0;
 }
-.private_snippet {
+/* TODO(michelle): Work on a way to make this styling less hard-to-read */
+.snippet-text-private {
     color: #888888;
 }
+
+
+/* Weekly snippets */
+.weekly-snippet-heading {
+    font-size: 24px;
+    text-align: center;
+}
+.weekly-snippet-heading h1 {
+    display: inline-block;
+    padding: 0 10px;
+    font-size: inherit;
+}
+.weekly-snippet-nav-link {
+    background-color: #eee;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    color: #999;
+    display: inline-block;
+    height: 28px;
+    line-height: 1;
+    text-decoration: none;
+    width: 28px;
+}
+.weekly-snippet-nav-link:hover,
+.weekly-snippet-nav-link:focus {
+    background-color: #ddd;
+    border-color: #bbb;
+    color: #888;
+}
+.snippet-category {
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 40px;
+}
+.snippet-category h2 {
+    margin-top: 30px;
+}
+.snippet-section h3 {
+    margin-bottom: 0;
+}
+
 
 /* Manage users */
 table {
@@ -49,11 +238,12 @@ table th a:visited {
     color: #ffffff;
 }
 table th a:hover,
+table th a:focus,
 table th a:active {
     color: #EE872A;
 }
 table td {
     border:1px solid #d4d4d4;
-    vertical-align: top;
     padding: 5px;
+    vertical-align: top;
 }

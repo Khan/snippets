@@ -8,60 +8,61 @@
   {% if editable %}
     <form action="/update_snippet" method="get">
 
-    <h2>Snippets for the week starting {{snippet.week|readable_date}}
-        &nbsp; <input type="submit" value="Save" class="save-button">
-        &nbsp; <button class="undo-button">undo</button>
+    <div class="snippet-header">
+      <h2>Snippets for the week starting {{snippet.week|readable_date}}</h2>
+      <div class="snippet-actions">
+        <input type="submit" value="Save" class="button save-button">
+        <button class="button undo-button">Clear Changes</button>
         {% if snippet.text == null_snippet_text and snippet.week == one_week_ago %}
         <span class="snippet-alert">Due today!</span>
         {% endif %}
         {% if snippet.text == null_snippet_text and snippet.week == eight_days_ago %}
         <span class="snippet-alert">OVERDUE!</spanf>
         {% endif %}
-    </h2>
+      </div>
+    </div>
 
     <input type="hidden" name="week" value="{{snippet.week|iso_date}}">
     <input type="hidden" name="u" value="{{username}}">
-    {% if snippet.text == null_snippet_text and user.category == null_category %}
-    <div>
-      <span class="snippet-alert">
-        WARNING: Snippet will go in the "{{null_category}}" category.
+    {% if user.category == null_category %}
+    <div class="snippet-warning">
+      <span>
+        <strong>WARNING:</strong> Snippet will go in the "{{null_category}}" category.
       </span>
       <a href="/settings?msg=Set+'Category'+below,+then+click+'Save.'&redirect_to=snippet_entry"
          >Set your snippet category!</a>
     </div>
     {% endif %}
     <div class="snippet-setting">
-    <label>
-    <input type="checkbox" name="private" value="True"
-           {% if snippet.private %}checked{% endif %}>
-    Make snippet private (only viewable by people in the domain <i>{{domain}}</i>)
-    </label>
+      <label>
+        <input type="checkbox" name="private" value="True"
+               {% if snippet.private %}checked{% endif %}>
+          Make snippet private (only viewable by people in the domain <i>{{domain}}</i>)
+      </label>
     </div>
     <div class="snippet-setting">
-    <label>
-    <input type="checkbox" name="is_markdown" value="True"
-           {% if snippet.is_markdown %}checked{% endif %}>
-    Snippet is written in <a href="http://daringfireball.net/projects/markdown/syntax">markdown syntax</a>
-    </label>
+      <label>
+        <input type="checkbox" name="is_markdown" value="True"
+               {% if snippet.is_markdown %}checked{% endif %}>
+          Snippet is written in <a href="http://daringfireball.net/projects/markdown/syntax">markdown syntax</a>
+      </label>
     </div>
-    <textarea name="snippet" rows="6" cols="80">{{snippet.text}}</textarea>
-    <div class="markdown_preview" style="display:none">
-      <i>Preview:</i>
-      <blockquote>
-        <div class="markdown_snippet"></div>
-      </blockquote>
+    <textarea class="snippet-textarea" name="snippet" rows="6" cols="80">{{snippet.text}}</textarea>
+    <div class="snippet-markdown-preview" style="display:none">
+      <h3>Snippet preview:</h3>
+      <div class="snippet-text-markdown"></div>
     </div>
     </form>
   {% else %}
     <h2>Snippets for the week starting {{snippet.week|readable_date}}</h2>
 
     {% if snippet.is_markdown %}
-    <div class="markdown_snippet
-                {% if snippet.private %}private_snippet{% endif %}"
+    <div class="snippet-text-markdown
+                {% if snippet.private %}snippet-text-private{% endif %}"
          >{{snippet.text|safe}}</div>
     {% else %}
-    <div class="text_snippet
-                {% if snippet.private %}private_snippet{% endif %}"
+    <div class="snippet-text
+                {% if snippet.private %}snippet-text-private{% endif %}"
          >{{snippet.text|urlize}}</div>
     {% endif %}
   {% endif %}
@@ -73,7 +74,7 @@
 <script src="static/snippets.js"></script>
 <script>
       marked.setOptions({sanitize: true});
-      $(".markdown_snippet").each(function(i, v) {
+      $(".snippet-text-markdown").each(function(i, v) {
          v.innerHTML = marked(v.innerHTML);
       });
 </script>

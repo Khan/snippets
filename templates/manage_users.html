@@ -26,11 +26,11 @@
 <tr>
   <td>
     {% if hidden %}
-        <input type="submit" name="unhide {{email}}" value="Unhide">
+        <input class="button" type="submit" name="unhide {{email}}" value="Unhide">
     {% else %}
-        <input type="submit" name="hide {{email}}" value="Hide">
+        <input class="button" type="submit" name="hide {{email}}" value="Hide">
     {% endif %}
-    <input type="submit" name="delete {{email}}" value="Delete">
+    <input class="button" type="submit" name="delete {{email}}" value="Delete">
   </td>
   <td>
     {{ email }}

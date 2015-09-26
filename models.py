@@ -23,7 +23,7 @@ class User(db.Model):
     email = db.StringProperty(required=True)           # The key to this record
     is_hidden = db.BooleanProperty(default=False)      # hide 'empty' snippets
     category = db.StringProperty(default=NULL_CATEGORY)  # groups snippets
-    uses_markdown = db.BooleanProperty(default=False)  # interpret snippet text
+    uses_markdown = db.BooleanProperty(default=True)  # interpret snippet text
     private_snippets = db.BooleanProperty(default=False)  # private by default?
     wants_email = db.BooleanProperty(default=True)     # get nag emails?
     # TODO(csilvers): make a ListProperty instead.

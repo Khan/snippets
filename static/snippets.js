@@ -7,7 +7,7 @@ $(function() {
         $parentForm.removeClass("dirty").
             find(".undo-button, .save-button").
             prop("disabled", true);
-        $parentForm.find(".markdown_preview").hide();
+        $parentForm.find(".snippet-markdown-preview").hide();
     };
 
     // save the state of each textarea to allow undos
@@ -25,8 +25,8 @@ $(function() {
         $parentForm.find(".undo-button, .save-button").
             prop("disabled", !dirty);
 
-        var $preview = $parentForm.find(".markdown_preview");
-        var $previewText = $parentForm.find(".markdown_snippet");
+        var $preview = $parentForm.find(".snippet-markdown-preview");
+        var $previewText = $parentForm.find(".snippet-text-markdown");
         if (dirty &&
               $parentForm.find("input[name='is_markdown']").prop('checked')) {
             $previewText.html(marked($(this).val()));

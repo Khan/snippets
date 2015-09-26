@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>{{title}}</title>
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,400italic,700" rel="stylesheet" type="text/css">
   <link rel="stylesheet" type="text/css" href="/static/snippets.css">
 </head>
 
@@ -9,31 +10,36 @@
 
 {% if not new_user %}
 <div class="header">
-<a href="/">Weekly Snippets</a>
-<div class="navigation">
-<a href="/settings?u={{username}}">user settings</a> |
-{% if is_admin %} <a href="/admin/manage_users">manage users (admin)</a> | {% endif %}
-<a href="{{logout_url}}">logout</a>
+  <a class="logo" href="/">Weekly Snippets</a>
+  <div class="navigation">
+    <a class="navigation-link" href="/settings?u={{username}}">user settings</a> |
+    {% if is_admin %} <a class="navigation-link" href="/admin/manage_users">manage users (admin)</a> | {% endif %}
+    <a class="navigation-link" href="{{logout_url}}">logout</a>
+  </div>
 </div>
+
+<div class="sub-header">
+  <form action="/weekly" method="get">
+    <label>
+      See snippets for the week starting
+      <input class="sub-header-filter-date" type="text" name="week" value="{{view_week|iso_date}}">
+    </label>
+    <input class="button" type="submit" value="View">
+  </form>
+
+  <form action="/" method="get">
+    <label>
+      See snippets for
+      <input class="sub-header-filter-user" type="text" name="u" value="{{username}}">
+    </label>
+    <input class="button" type="submit" value="View">
+  </form>
 </div>
 
 {% if message %}
 <div class="page-alert"><b>{{message}}</b></div>
 {% endif %}
 
-<form action="/weekly" method="get">
-  <p>See snippets for the week starting
-  <input type="text" name="week" value="{{view_week|iso_date}}">
-  <input type="submit" value="View">
-  </p>
-</form>
-
-<form action="/" method="get">
-  <p>See snippets for
-  <input type="text" name="u" value="{{username}}">
-  <input type="submit" value="View">
-  </p>
-</form>
-
-<hr>
 {% endif %}
+
+<div class="page-content">
