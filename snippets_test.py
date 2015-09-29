@@ -65,7 +65,7 @@ class SnippetsTestBase(unittest.TestCase):
 
     def assertNumSnippets(self, body, expected_count):
         """Assert the page 'body' has exactly expected_count snippets in it."""
-       # We annotate the div at the beginning of each snippet with
+        # We annotate the div at the beginning of each snippet with
         # class="snippet".
         self.assertEqual(expected_count, body.count('class="snippet"'), body)
 

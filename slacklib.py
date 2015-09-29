@@ -269,7 +269,8 @@ def command_list(user_email):
     if not items:
         return (
             "*You don't have any snippets for this week yet!* :speak_no_evil:\n"
-            ":pencil: Use `/snippets add` to create one, or try `/snippets help` ."
+            ":pencil: Use `/snippets add` to create one, or try "
+            "`/snippets help` ."
         )
 
     return textwrap.dedent(
@@ -288,9 +289,10 @@ def command_last(user_email):
         return "*You didn't have any snippets last week!* :speak_no_evil:"
     except SyntaxError:
         return (
-            "*Your snippets last week are not in a format I understand.* :cry:\n"
-            "I support markdown lists only, "
-            "for more information see `/snippets help` ."
+            "*Your snippets last week are not in a format I understand.* "
+            ":cry:\n"
+            "I support markdown lists only. "
+            "For more information see `/snippets help` ."
         )
 
     if not items:
@@ -304,7 +306,7 @@ def command_last(user_email):
 
 def _linkify_usernames(text):
     """Slack wants @usernames to be surrounded in <> to be highlighted."""
-    return re.sub(r'(?<!\<)(@[\w_]+)', r'<\1>', text)
+    return re.sub(r'(?<!<)(@[\w_]+)', r'<\1>', text)
 
 
 def _markdown_list(items):
@@ -320,7 +322,6 @@ def command_add(user_email, new_item):
             "Usage: `/snippets add [item]`"
         )
 
-    items = []
     try:
         snippet = _user_snippet(user_email)      # may raise ValueError
         items = _snippet_items(snippet)          # may raise SyntaxError
@@ -363,7 +364,6 @@ def command_del(user_email, args):
     except ValueError:
         return syntax_err_msg
 
-    items = []
     try:
         snippet = _user_snippet(user_email)      # may raise ValueError
         items = _snippet_items(snippet)          # may raise SyntaxError
