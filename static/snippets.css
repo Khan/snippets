@@ -5,8 +5,22 @@ body {
     margin: 0;
 }
 
+/* Reset styles */
 * {
     box-sizing: border-box;
+}
+legend {
+  padding: 0;
+  display: table;
+}
+fieldset {
+  border: 0;
+  padding: 0.01em 0 0 0;
+  margin: 0;
+  min-width: 0;
+}
+body:not(:-moz-handler-blocked) fieldset {
+  display: table-cell;
 }
 
 .centered-content {
@@ -265,6 +279,18 @@ h1 {
 }
 .snippet-section h3 {
     margin-bottom: 0;
+}
+
+/* User settings */
+.user-settings-label {
+    display: inline-block;
+    font-weight: bold;
+}
+.user-settings-textarea {
+    display: block;
+}
+.user-settings-block {
+    margin: 1em 0;
 }
 
 

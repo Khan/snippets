@@ -5,45 +5,63 @@
 
 <h1>User settings for {{username}}</h1>
 
-<form action="/update_settings" method="get">
+<form action="/update_settings" method="get" class="user-settings">
 
-<p><b>Email address</b> (cannot be changed):
-<input type="hidden" name="u" value="{{user.email}}">{{user.email}}
-</p>
+<div class="user-settings-block">
+  <div class="user-settings-label">Email address (cannot be changed):</div>
+  {{user.email}}
+  <input type="hidden" name="u" value="{{user.email}}">
+</div>
 
-<p><b>Category:</b>
-<input type="text" name="category" value="{{user.category}}">
-</p>
+<div class="user-settings-block">
+  <label class="user-settings-label" for="category">Category:</label>
+  <input id="category" type="text" name="category" value="{{user.category}}">
+</div>
 
-<p><b>Interpret snippets as
-    <a href="http://daringfireball.net/projects/markdown/syntax">markdown</a>
-    by default?
-  </b>
-<input type="radio" name="markdown" value="yes"
-       {% if user.uses_markdown %}checked{% endif %}> yes
-<input type="radio" name="markdown" value="no"
-       {% if not user.uses_markdown %}checked{% endif %}> no
-</p>
+<fieldset class="user-settings-block">
+  <legend class="user-settings-label">
+    Interpret snippets as <a href="http://daringfireball.net/projects/markdown/syntax">markdown</a> by default?
+  </legend>
+  <input id="markdown-yes" type="radio" name="markdown" value="yes"
+         {% if user.uses_markdown %}checked{% endif %}>
+         <label for="markdown-yes">yes</label>
+  <input id="markdown-no" type="radio" name="markdown" value="no"
+         {% if not user.uses_markdown %}checked{% endif %}>
+         <label for="markdown-no">no</label>
+</fieldset>
 
-<p><b>Have snippets be private by default?:</b>
-<input type="radio" name="private" value="yes"
-       {% if user.private_snippets %}checked{% endif %}> yes
-<input type="radio" name="private" value="no"
-       {% if not user.private_snippets %}checked{% endif %}> no
-</p>
+<fieldset class="user-settings-block">
+  <legend class="user-settings-label">Have snippets be private by default?:</legend>
+  <input id="private-yes" type="radio" name="private" value="yes"
+         {% if user.private_snippets %}checked{% endif %}>
+         <label for="private-yes">yes</label>
+  <input id="private-no" type="radio" name="private" value="no"
+         {% if not user.private_snippets %}checked{% endif %}>
+         <label for="private-no">no</label>
+</fieldset>
 
-<p><b>Receive reminder emails?:</b>
-<input type="radio" name="reminder_email" value="yes"
-       {% if user.wants_email %}checked{% endif %}> yes
-<input type="radio" name="reminder_email" value="no"
-       {% if not user.wants_email %}checked{% endif %}> no
-</p>
+<fieldset class="user-settings-block">
+  <legend class="user-settings-label">Receive reminder emails?:</legend>
+  <input id="reminder-email-yes" type="radio" name="reminder_email" value="yes"
+         {% if user.wants_email %}checked{% endif %}>
+         <label for="reminder-email-yes">yes</label>
+  <input id="reminder-email-no" type="radio" name="reminder_email" value="no"
+         {% if not user.wants_email %}checked{% endif %}>
+         <label for="reminder-email-no">no</label>
+</fieldset>
 
-<p><b>Email addresses of people to view snippets of</b>
-(regexp, one per line, "all" for everybody):<br>
-(TODO(csilvers): this field is currently ignored)<br>
-<textarea name="to_view" rows="4" cols="60">{{wants_to_view}}</textarea>
-</p>
+<div class="user-settings-block">
+  <label class="user-settings-label" for="to-view">
+    Email addresses of people to view snippets of:
+  </label>
+  <textarea id="to-view" class="user-settings-textarea" name="to_view" rows="4" cols="60">
+    {{wants_to_view}}
+  </textarea>
+  <div>
+    (regexp, one per line, "all" for everybody)<br>
+    (TODO(csilvers): this field is currently ignored)<br>
+  </div>
+</div>
 
 <input type="hidden" name="redirect_to" value="{{redirect_to}}">
 
