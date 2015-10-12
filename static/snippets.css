@@ -67,11 +67,13 @@ body:not(:-moz-handler-blocked) fieldset {
     padding-top: 10px;
 }
 .sub-header form {
+    display: -webkit-flex;
     display: flex;
     margin: 5px 0;
     max-width: 400px;
 }
 .sub-header input[type="text"] {
+    -webkit-flex: 1;
     flex: 1;
     margin: 0 5px;
     width: auto;
@@ -219,10 +221,13 @@ h1 {
     margin-top: 10px;
     padding: 10px 10px;
 }
-.snippet-text {
-    font-family: "Lucida Console", Monaco, monospace;
+.snippet-text,
+.snippet-text-markdown {
+    font-size: 14px;
+    -webkit-text-size-adjust: 100%;
 }
 .snippet-text {
+    font-family: "Lucida Console", Monaco, monospace;
     overflow-x: auto;
     padding-bottom: 10px;
     white-space: pre;
@@ -274,7 +279,7 @@ h1 {
 .snippet-category h2 {
     border-bottom: 1px solid #ddd;
     font-weight: normal;
-    margin-top: 30px;
+    margin-top: 10px;
     padding-bottom: 5px;
 }
 .snippet-section h3 {
@@ -285,6 +290,7 @@ h1 {
 .user-settings-label {
     display: inline-block;
     font-weight: bold;
+    margin-bottom: 3px;
 }
 .user-settings-textarea {
     display: block;
@@ -325,4 +331,56 @@ table td {
     border:1px solid #d4d4d4;
     padding: 5px;
     vertical-align: top;
+}
+
+.mobile-visible {
+    display: none;
+}
+.mobile-hidden {
+    display: inherit;
+}
+/* Media Queries */
+@media (max-width: 500px) {
+    .mobile-hidden {
+        display: none;
+    }
+    .mobile-visible {
+        display: inherit;
+    }
+    h1 {
+        font-size: 1.3em;
+    }
+    h2 {
+        font-size: 1.2em;
+    }
+    h3 {
+        font-size: 1.1em;
+    }
+
+    .centered-content {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    .header {
+        text-align: center;
+    }
+    .navigation {
+        float: none;
+    }
+    .navigation-link {
+        display: inline-block;
+        line-height: 12px;
+        opacity: 0.8;
+        padding: 4px 0;
+        font-size: 12px;
+    }
+    .sub-header {
+        font-size: 10px;
+    }
+
+    .weekly-snippet-heading h1 {
+        /* Keep about the same width so the arrows stay in the same place */
+        min-width: 200px;
+    }
 }

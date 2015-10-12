@@ -15,7 +15,10 @@
       </h2>
       <div class="snippet-actions">
         <input type="submit" value="Save" class="button save-button">
-        <button class="button undo-button">Clear Changes</button>
+        <button class="button undo-button">
+          <span class="mobile-visible" aria-label="Clear Changes">&times;</span>
+          <span class="mobile-hidden">Clear Changes</span>
+        </button>
         {% if snippet.text == null_snippet_text and snippet.week == one_week_ago %}
         <span class="snippet-alert">Due today!</span>
         {% endif %}
