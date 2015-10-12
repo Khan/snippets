@@ -1,7 +1,7 @@
 .PHONY: serve test cfg-check appcfg-update deploy
 
 serve:
-	dev_appserver.py --log_level=debug .
+	dev_appserver.py --log_level=debug . --host=0.0.0.0
 
 test:
 	python -m unittest discover -p '*_test.py'
