@@ -8,8 +8,11 @@
   {% if editable %}
     <form action="/update_snippet" method="get">
 
-    <div class="snippet-header">
-      <h2>Snippets for the week starting {{snippet.week|readable_date}}</h2>
+    <div class="snippet-header clear-fix">
+      <h2>
+        <span class="snippets-title">Snippets for the week starting</span>
+        {{snippet.week|readable_date}}
+      </h2>
       <div class="snippet-actions">
         <input type="submit" value="Save" class="button save-button">
         <button class="button undo-button">Clear Changes</button>
@@ -54,7 +57,10 @@
     </div>
     </form>
   {% else %}
-    <h2>Snippets for the week starting {{snippet.week|readable_date}}</h2>
+    <h2>
+      <span class="snippets-title">Snippets for the week starting</span>
+      {{snippet.week|readable_date}}
+    </h2>
 
     {% if snippet.is_markdown %}
     <div class="snippet-text-markdown

@@ -9,37 +9,38 @@
 <body>
 
 {% if not new_user %}
-<div class="header">
-  <a class="logo" href="/">Weekly Snippets</a>
-  <div class="navigation">
-    <a class="navigation-link" href="/settings?u={{username}}">user settings</a> |
-    {% if is_admin %} <a class="navigation-link" href="/admin/manage_users">manage users (admin)</a> | {% endif %}
-    <a class="navigation-link" href="{{logout_url}}">logout</a>
+<div class="header clear-fix">
+  <div class="centered-content">
+    <a class="logo" href="/">Weekly Snippets</a>
+    <div class="navigation">
+      <a class="navigation-link" href="/settings?u={{username}}">user settings</a> |
+      {% if is_admin %} <a class="navigation-link" href="/admin/manage_users">manage users (admin)</a> | {% endif %}
+      <a class="navigation-link" href="{{logout_url}}">logout</a>
+    </div>
   </div>
 </div>
 
 <div class="sub-header">
-  <form action="/weekly" method="get">
-    <label>
-      See snippets for the week starting
-      <input class="sub-header-filter-date" type="text" name="week" value="{{view_week|iso_date}}">
-    </label>
-    <input class="button" type="submit" value="View">
-  </form>
+  <div class="centered-content">
+    <form action="/weekly" method="get">
+      <label for="sub-header-week">See snippets for the week starting</label>
+      <input id="sub-header-week" type="text" name="week" value="{{view_week|iso_date}}" />
+      <input class="button" type="submit" value="View">
+    </form>
 
-  <form action="/" method="get">
-    <label>
-      See snippets for
-      <input class="sub-header-filter-user" type="text" name="u" value="{{username}}">
-    </label>
-    <input class="button" type="submit" value="View">
-  </form>
+    <form action="/" method="get">
+      <label for="sub-header-username">See snippets for </label>
+      <input id="sub-header-username" type="text" name="u" value="{{username}}" />
+      <input class="button" type="submit" value="View">
+    </form>
+  </div>
 </div>
-
-{% if message %}
-<div class="page-alert"><b>{{message}}</b></div>
-{% endif %}
 
 {% endif %}
 
 <div class="page-content">
+  <div class="centered-content">
+
+  {% if message %}
+  <div class="page-alert"><b>{{message}}</b></div>
+  {% endif %}

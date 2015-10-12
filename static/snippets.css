@@ -5,12 +5,25 @@ body {
     margin: 0;
 }
 
+* {
+    box-sizing: border-box;
+}
+
+.centered-content {
+    margin: 0 auto;
+    max-width: 1000px;
+    padding-left: 40px;
+    padding-right: 40px;
+}
+
 /* Navigation */
 .header {
     background: #222;
     color: rgba(255, 255, 255, 0.51);
-    padding: 10px 40px;
+    padding-bottom: 10px;
+    padding-top: 10px;
 }
+
 .header a,
 .header a:hover {
     color: #fff;
@@ -36,21 +49,21 @@ body {
     background: #eee;
     border-bottom: 1px solid #ccc;
     line-height: 2;
-    padding: 10px 40px;
+    padding-bottom: 10px;
+    padding-top: 10px;
+}
+.sub-header form {
+    display: flex;
+    margin: 5px 0;
+    max-width: 400px;
 }
 .sub-header input[type="text"] {
-    padding: 2px 4px;
+    flex: 1;
+    margin: 0 5px;
+    width: auto;
 }
 .sub-header input[type="submit"] {
     padding: 3px 10px;
-}
-
-/* These widths look nice and mean the boxes line up */
-.sub-header-filter-date {
-    width: 70px;
-}
-.sub-header-filter-user {
-    width: 170px;
 }
 
 /* Alert messages */
@@ -58,11 +71,10 @@ body {
     /* Green background and darker green border/text */
     background: #cae2ae;
     border: 1px solid #639b24;
-    border-width: 1px 0;
     color: #639b24;
     font-size: 16px;
     margin-top: 10px;
-    padding: 10px 40px;
+    padding: 10px 20px;
 }
 .snippet-alert {
     color: red;
@@ -78,6 +90,30 @@ body {
 }
 
 /* Generic styles */
+.clear-fix:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+input[type="text"],
+.button,
+textarea {
+    /* Override iOS border/gradient styles */
+    -webkit-border-radius: inherit;
+    -webkit-appearance: none;
+}
+
+input[type="text"],
+textarea {
+    border: 1px solid #ccc;
+    padding: 2px 4px;
+}
+
+textarea {
+    max-width: 100%;
+}
+
 a {
     /* Blue links */
     color: #337ab7;
@@ -110,14 +146,26 @@ h1 {
     border-color: #ccc;
     color: #aaa;
     cursor: not-allowed;
+    opacity: 1;
 }
 
 /* Content */
 .page-content {
-    padding: 10px 40px;
+    overflow-x: auto;
+    padding-bottom: 10px;
+    padding-top: 10px;
 }
 
 /* Snippets */
+
+.snippets-title {
+    color: #888;
+    display: block;
+    font-size: 10px;
+    font-weight: normal;
+    text-transform: uppercase;
+}
+
 .snippet {
     border-top: 1px solid #ccc;
     margin-bottom: 10px;
@@ -157,9 +205,7 @@ h1 {
     margin-top: 10px;
     padding: 10px 10px;
 }
-.snippet-textarea,
-.snippet-text,
-.snippet-text-markdown {
+.snippet-text {
     font-family: "Lucida Console", Monaco, monospace;
 }
 .snippet-text {
@@ -170,6 +216,9 @@ h1 {
 .snippet-text-markdown ul {
     margin: 0;
 }
+.snippet-text-markdown p {
+    margin: 0.3em 0;
+}
 /* TODO(michelle): Work on a way to make this styling less hard-to-read */
 .snippet-text-private {
     color: #888888;
@@ -178,13 +227,14 @@ h1 {
 
 /* Weekly snippets */
 .weekly-snippet-heading {
-    font-size: 24px;
     text-align: center;
 }
 .weekly-snippet-heading h1 {
     display: inline-block;
     padding: 0 10px;
-    font-size: inherit;
+    /* Keep about the same width so the arrows stay in the same place */
+    min-width: 250px;
+    vertical-align: middle;
 }
 .weekly-snippet-nav-link {
     background-color: #eee;
@@ -192,8 +242,9 @@ h1 {
     border-radius: 4px;
     color: #999;
     display: inline-block;
+    font-size: 24px;
     height: 28px;
-    line-height: 1;
+    line-height: 20px;
     text-decoration: none;
     width: 28px;
 }
@@ -204,11 +255,13 @@ h1 {
     color: #888;
 }
 .snippet-category {
-    border-bottom: 1px solid #ddd;
-    padding-bottom: 40px;
+    padding-bottom: 10px;
 }
 .snippet-category h2 {
+    border-bottom: 1px solid #ddd;
+    font-weight: normal;
     margin-top: 30px;
+    padding-bottom: 5px;
 }
 .snippet-section h3 {
     margin-bottom: 0;
