@@ -12,6 +12,12 @@
       <h2>
         <span class="snippets-title">Snippets for the week starting</span>
         {{snippet.week|readable_date}}
+        {% if snippet.text == null_snippet_text and snippet.week == one_week_ago %}
+        <span class="snippet-alert">Due today!</span>
+        {% endif %}
+        {% if snippet.text == null_snippet_text and snippet.week == eight_days_ago %}
+        <span class="snippet-alert">OVERDUE!</span>
+        {% endif %}
       </h2>
       <div class="snippet-actions">
         <input type="submit" value="Save" class="button save-button">
@@ -19,12 +25,6 @@
           <span class="mobile-visible" aria-label="Clear Changes">&times;</span>
           <span class="mobile-hidden">Clear Changes</span>
         </button>
-        {% if snippet.text == null_snippet_text and snippet.week == one_week_ago %}
-        <span class="snippet-alert">Due today!</span>
-        {% endif %}
-        {% if snippet.text == null_snippet_text and snippet.week == eight_days_ago %}
-        <span class="snippet-alert">OVERDUE!</spanf>
-        {% endif %}
       </div>
     </div>
 
