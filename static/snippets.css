@@ -246,6 +246,9 @@ h1 {
 .snippet-text-markdown p {
     margin: 0.3em 0;
 }
+.snippet-text-markdown img {
+    max-width: 100%;
+}
 /* TODO(michelle): Work on a way to make this styling less hard-to-read */
 .snippet-text-private {
     color: #888888;
