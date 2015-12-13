@@ -296,7 +296,7 @@ class NewUserTestCase(UserTestBase):
     def testNewUserContinueUrl(self):
         """After verifying settings, we should go back to snippet-entry."""
         response = self.request_fetcher.get('/')
-        m = re.search(r'<A HREF="(/settings[^"]*)">', response.body)
+        m = re.search(r'<a href="(/settings[^"]*)">', response.body)
         continue_url = m.group(1)
 
         settings_response = self.request_fetcher.get(continue_url)
