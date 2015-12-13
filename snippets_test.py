@@ -316,14 +316,12 @@ class UserSettingsTestCase(UserTestBase):
     """Test that user settings flow through to snippets page appropriately."""
 
     def assertInputIsChecked(self, name, body, snippet_number):
-        self.assertInSnippet('name="%s" value="True"\n'
-                             '           checked>' % name,
-                             body, snippet_number)
+        self.assertRegexpMatches(body, r'name="%s" value="True"\s+checked\s*>'
+                                 % name, snippet_number)
 
     def assertInputIsNotChecked(self, name, body, snippet_number):
-        self.assertInSnippet('name="%s" value="True"\n'
-                             '           >' % name,
-                             body, snippet_number)
+        self.assertRegexpMatches(body, r'name="%s" value="True"\s*>' % name,
+                                 snippet_number)
 
     def testDefaultUserSettings(self):
         # Make sure the rest of the tests are actually testing
