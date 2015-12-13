@@ -4,7 +4,7 @@
 <h1>Snippets for {{username}}</h1>
 
 {% for snippet in snippets %}
-  <div class="snippet">
+  <div class="snippet unique-snippet">
   {% if editable %}
     <form action="/update_snippet" method="get">
 

@@ -15,7 +15,7 @@
     <h2> {{category_and_snippets.0}} </h2>
 
     {% for snippet in category_and_snippets.1 %}
-      <div class="snippet-section">
+      <div class="snippet-section unique-snippet">
         <h3>{{snippet.email}}:</h3>
         {% if snippet.is_markdown %}
         <div class="snippet-text-markdown

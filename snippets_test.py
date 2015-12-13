@@ -66,15 +66,16 @@ class SnippetsTestBase(unittest.TestCase):
     def assertNumSnippets(self, body, expected_count):
         """Assert the page 'body' has exactly expected_count snippets in it."""
         # We annotate the div at the beginning of each snippet with
-        # class="snippet".
-        self.assertEqual(expected_count, body.count('class="snippet"'), body)
+        # class="<etc> unique-snippet".
+        self.assertEqual(expected_count, body.count('unique-snippet'),
+                         body)
 
     def _ith_snippet(self, body, snippet_number):
         """For user- and weekly-pages, return the i-th snippet, 0-indexed."""
         # The +1 is because the 0-th element is stuff before the 1st snippet.
         # If we get an IndexError, it means there aren't that many snippets.
         try:
-            return body.split('class="snippet"',
+            return body.split('unique-snippet',
                               snippet_number + 2)[snippet_number + 1]
         except IndexError:
             raise IndexError('Has fewer than %d snippets:\n%s'
