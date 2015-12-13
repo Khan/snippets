@@ -385,24 +385,30 @@ class UserSettingsTestCase(UserTestBase):
     def testCategoryUnset(self):
         self.request_fetcher.get('/update_settings?u=user@example.com')
         response = self.request_fetcher.get('/')
-        self.assertInSnippet('WARNING: Snippet will go in the "(unknown)"',
-                             response.body, 0)
+        self.assertInSnippet(
+            '<strong>WARNING:</strong> Snippet will go in the "(unknown)"',
+            response.body, 0
+        )
 
     def testCategorySet(self):
         self.request_fetcher.get('/update_settings?u=user@example.com')
         self.request_fetcher.get(
             '/update_settings?u=user@example.com&category=Dev')
         response = self.request_fetcher.get('/')
-        self.assertNotInSnippet('WARNING: Snippet will go in the "(unknown)"',
-                                response.body, 0)
+        self.assertNotInSnippet(
+            '<strong>WARNING:</strong> Snippet will go in the "(unknown)"',
+            response.body, 0
+        )
 
     def testCategoryUnsetButSnippetHasContent(self):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
         self.request_fetcher.get(url)
 
         response = self.request_fetcher.get('/')
-        self.assertNotInSnippet('WARNING: Snippet will go in the "(unknown)"',
-                                response.body, 0)
+        self.assertNotInSnippet(
+            '<strong>WARNING:</strong> Snippet will go in the "(unknown)"',
+            response.body, 0
+        )
 
     def testCategoryCheckForFilledInSnippets(self):
         url = '/update_snippet?week=02-21-2011&snippet=old+snippet'
@@ -410,11 +416,15 @@ class UserSettingsTestCase(UserTestBase):
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 53)
         self.assertInSnippet('(No snippet for this week)', response.body, 9)
-        self.assertInSnippet('WARNING: Snippet will go in the "(unknown)"',
-                             response.body, 9)
+        self.assertInSnippet(
+            '<strong>WARNING:</strong> Snippet will go in the "(unknown)"',
+            response.body, 9
+        )
         self.assertInSnippet('old snippet', response.body, 52)
-        self.assertNotInSnippet('WARNING: Snippet will go in the "(unknown)"',
-                                response.body, 52)
+        self.assertNotInSnippet(
+            '<strong>WARNING:</strong> Snippet will go in the "(unknown)"',
+            response.body, 52
+        )
 
     def testHiddenUser(self):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
