@@ -291,7 +291,7 @@ class NewUserTestCase(UserTestBase):
 
     def testNewUserLogin(self):
         response = self.request_fetcher.get('/')
-        self.assertIn('<title>New User</title>', response.body)
+        self.assertIn('<title>New user</title>', response.body)
 
     def testNewUserContinueUrl(self):
         """After verifying settings, we should go back to snippet-entry."""
