@@ -405,7 +405,7 @@ class UserSettingsTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
         response = self.request_fetcher.get('/')
-        self.assertNotInSnippet(
+        self.assertInSnippet(
             '<strong>WARNING:</strong> Snippet will go in the "(unknown)"',
             response.body, 0
         )
@@ -421,7 +421,7 @@ class UserSettingsTestCase(UserTestBase):
             response.body, 9
         )
         self.assertInSnippet('old snippet', response.body, 52)
-        self.assertNotInSnippet(
+        self.assertInSnippet(
             '<strong>WARNING:</strong> Snippet will go in the "(unknown)"',
             response.body, 52
         )
