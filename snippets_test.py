@@ -910,11 +910,11 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertNotInSnippet('foreign', response.body, 2)
         # We *should* see stuff from our domain, but in gray.
         self.assertInSnippet('private@example.com', response.body, 1)
-        self.assertInSnippet('private_snippet', response.body, 1)
+        self.assertInSnippet('snippet-text-private', response.body, 1)
         self.assertInSnippet('no see um', response.body, 1)
         # And we should see public snippets, not in gray.
         self.assertInSnippet('public@example.com', response.body, 3)
-        self.assertNotInSnippet('private_snippet', response.body, 3)
+        self.assertNotInSnippet('snippet-text-private', response.body, 3)
         self.assertInSnippet('see me', response.body, 3)
 
         self.login('random@some_other_domain.com')
@@ -922,13 +922,13 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertNumSnippets(response.body, 4)
         self.assertInSnippet('private@some_other_domain.com', response.body, 2)
         self.assertInSnippet('foreign', response.body, 2)
-        self.assertInSnippet('private_snippet', response.body, 2)
+        self.assertInSnippet('snippet-text-private', response.body, 2)
         # Now we shouldn't see stuff from example.com
         self.assertInSnippet('private@example.com', response.body, 1)
         self.assertNotInSnippet('no see um', response.body, 1)
         # And we should also see public snippets, not in gray.
         self.assertInSnippet('public@example.com', response.body, 3)
-        self.assertNotInSnippet('private_snippet', response.body, 3)
+        self.assertNotInSnippet('snippet-text-private', response.body, 3)
         self.assertInSnippet('see me', response.body, 3)
 
     def testPrivacyIsPerSnippet(self):
@@ -987,11 +987,11 @@ class MarkdownSnippetTestCase(UserTestBase):
 
     def testMarkdownRendering(self):
         response = self.request_fetcher.get('/weekly?week=02-13-2012')
-        self.assertInSnippet('class="markdown_snippet', response.body, 0)
+        self.assertInSnippet('class="snippet-text-markdown', response.body, 0)
 
     def testTextRendering(self):
         response = self.request_fetcher.get('/weekly?week=02-20-2012')
-        self.assertInSnippet('class="text_snippet', response.body, 0)
+        self.assertInSnippet('class="snippet-text', response.body, 0)
 
 
 class ManageUsersTestCase(UserTestBase):
