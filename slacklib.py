@@ -38,7 +38,6 @@ import webapp2
 from google.appengine.ext import db
 from google.appengine.api import memcache
 
-import models
 import util
 
 # the Slack slash command token is sent to us by the Slack server with every
@@ -229,10 +228,10 @@ def _snippet_items(snippet):
     Raises SyntaxError if snippet not in proper format (e.g. contains
         anything other than a markdown list).
     """
-    unformatted = snippet.text.strip()
+    unformatted = snippet.text and snippet.text.strip()
 
-    # treat default null text value as empty list
-    if unformatted == models.NULL_SNIPPET_TEXT:
+    # treat null text value as empty list
+    if not unformatted:
         return []
 
     # parse out all markdown list items
@@ -399,7 +398,7 @@ def command_dump(user_email):
         snippet = _user_snippet(user_email)
     except ValueError:
         return _no_user_error(user_email)
-    return "```{}```".format(snippet.text)
+    return "```{}```".format(snippet.text or 'No snippet yet for this week')
 
 
 class SlashCommand(webapp2.RequestHandler):

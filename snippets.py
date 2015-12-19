@@ -189,7 +189,6 @@ class UserPage(BaseHandler):
                          self.request.get('edit', '1') == '1'),
             'user': user,
             'snippets': snippets,
-            'null_snippet_text': models.NULL_SNIPPET_TEXT,
             'null_category': models.NULL_CATEGORY,
         }
         self.render_response('user_snippets.html', template_values)
@@ -259,8 +258,7 @@ class SummaryPage(BaseHandler):
         # snippet again.)
         for (email, category) in email_to_category.iteritems():
             if email not in hidden_users:
-                snippet = models.Snippet(email=email, week=week,
-                                         text='(no snippet this week)')
+                snippet = models.Snippet(email=email, week=week)
                 snippets_by_category.setdefault(category, []).append(snippet)
 
         # Now get a sorted list, categories in alphabetical order and

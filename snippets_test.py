@@ -352,7 +352,6 @@ class UserSettingsTestCase(UserTestBase):
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 53)
-        self.assertInSnippet('(No snippet for this week)', response.body, 9)
         self.assertInputIsNotChecked('private', response.body, 9)
         self.assertInputIsNotChecked('is_markdown', response.body, 9)
         self.assertInSnippet('old snippet', response.body, 52)
@@ -363,7 +362,6 @@ class UserSettingsTestCase(UserTestBase):
             '/update_settings?u=user@example.com&markdown=yes')
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 53)
-        self.assertInSnippet('(No snippet for this week)', response.body, 9)
         self.assertInputIsNotChecked('private', response.body, 9)
         self.assertInputIsChecked('is_markdown', response.body, 9)
         # But the existing snippet is unaffected.
@@ -375,7 +373,6 @@ class UserSettingsTestCase(UserTestBase):
             '/update_settings?u=user@example.com&private=yes')
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 53)
-        self.assertInSnippet('(No snippet for this week)', response.body, 9)
         self.assertInputIsChecked('private', response.body, 9)
         self.assertInputIsNotChecked('is_markdown', response.body, 9)
         self.assertInSnippet('old snippet', response.body, 52)
@@ -415,7 +412,6 @@ class UserSettingsTestCase(UserTestBase):
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 53)
-        self.assertInSnippet('(No snippet for this week)', response.body, 9)
         self.assertInSnippet(
             '<strong>WARNING:</strong> Snippet will go in the "(unknown)"',
             response.body, 9
@@ -500,7 +496,6 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/weekly?week=02-13-2012')
         self.assertNumSnippets(response.body, 1)
-        self.assertInSnippet('(no snippet this week)', response.body, 0)
         self.assertNotIn('>my snippet<', response.body)
 
     def testViewSnippetsForTwoUsers(self):
@@ -565,7 +560,6 @@ class SetAndViewSnippetsTestCase(UserTestBase):
 
         response = self.request_fetcher.get('/weekly?week=02-13-2012')
         self.assertNumSnippets(response.body, 1)
-        self.assertInSnippet('(no snippet this week)', response.body, 0)
         self.assertNotIn('>my snippet<', response.body)
         self.assertNotIn('>my second snippet<', response.body)
 
@@ -580,7 +574,6 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.assertNumSnippets(response.body, 2)
         # Other-user comes first alphabetically.
         self.assertInSnippet('other@example.com', response.body, 0)
-        self.assertInSnippet('(no snippet this week)', response.body, 0)
         self.assertInSnippet('user@example.com', response.body, 1)
         self.assertInSnippet('>my snippet<', response.body, 1)
 
@@ -589,7 +582,6 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.assertInSnippet('other@example.com', response.body, 0)
         self.assertInSnippet('>other snippet<', response.body, 0)
         self.assertInSnippet('user@example.com', response.body, 1)
-        self.assertInSnippet('(no snippet this week)', response.body, 1)
 
     def testViewEmptySnippetsInUserMode(self):
         """Occurs when there's a gap between two snippets."""
@@ -601,7 +593,6 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 3)
         self.assertInSnippet('>my snippet<', response.body, 0)
-        self.assertInSnippet('(No snippet for this week)', response.body, 1)
         self.assertInSnippet('>my old snippet<', response.body, 2)
 
     def testCategorizeSnippets(self):
@@ -802,21 +793,16 @@ class NosnippetGapFillingTestCase(UserTestBase):
 
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 1)
-        self.assertInSnippet('(No snippet for this week)', response.body, 0)
 
     def testOneSnippetInDistantPast(self):
         url = '/update_snippet?week=02-21-2011&snippet=old+snippet'
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 53)
-        self.assertInSnippet('(No snippet for this week)', response.body, 0)
-        self.assertInSnippet('(No snippet for this week)', response.body, 20)
-        self.assertInSnippet('(No snippet for this week)', response.body, 50)
         self.assertInSnippet('old snippet', response.body, 52)
 
         response = self.request_fetcher.get('/weekly')
         self.assertNumSnippets(response.body, 1)
-        self.assertInSnippet('(no snippet this week)', response.body, 0)
 
     def testTwoSnippetsInDistantPast(self):
         url = '/update_snippet?week=08-22-2011&snippet=oldish+snippet'
@@ -825,14 +811,11 @@ class NosnippetGapFillingTestCase(UserTestBase):
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 53)
-        self.assertInSnippet('(No snippet for this week)', response.body, 0)
-        self.assertInSnippet('(No snippet for this week)', response.body, 50)
         self.assertInSnippet('oldish snippet', response.body, 26)
         self.assertInSnippet('old snippet', response.body, 52)
 
         response = self.request_fetcher.get('/weekly')
         self.assertNumSnippets(response.body, 1)
-        self.assertInSnippet('(no snippet this week)', response.body, 0)
 
     def testSnippetInTheFuture(self):
         url = '/update_snippet?week=02-18-2013&snippet=future+snippet'
@@ -843,7 +826,6 @@ class NosnippetGapFillingTestCase(UserTestBase):
 
         response = self.request_fetcher.get('/weekly')
         self.assertNumSnippets(response.body, 1)
-        self.assertInSnippet('(no snippet this week)', response.body, 0)
 
     def testSnippetInThePastAndFuture(self):
         url = '/update_snippet?week=02-21-2011&snippet=old+snippet'
@@ -853,12 +835,10 @@ class NosnippetGapFillingTestCase(UserTestBase):
         response = self.request_fetcher.get('/')
         self.assertNumSnippets(response.body, 105)
         self.assertInSnippet('future snippet', response.body, 0)
-        self.assertInSnippet('(No snippet for this week)', response.body, 52)
         self.assertInSnippet('old snippet', response.body, 104)
 
         response = self.request_fetcher.get('/weekly')
         self.assertNumSnippets(response.body, 1)
-        self.assertInSnippet('(no snippet this week)', response.body, 0)
 
 
 class PrivateSnippetTestCase(UserTestBase):
@@ -910,11 +890,11 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertNotInSnippet('foreign', response.body, 2)
         # We *should* see stuff from our domain, but in gray.
         self.assertInSnippet('private@example.com', response.body, 1)
-        self.assertInSnippet('snippet-text-private', response.body, 1)
+        self.assertInSnippet('snippet-tag-private', response.body, 1)
         self.assertInSnippet('no see um', response.body, 1)
         # And we should see public snippets, not in gray.
         self.assertInSnippet('public@example.com', response.body, 3)
-        self.assertNotInSnippet('snippet-text-private', response.body, 3)
+        self.assertNotInSnippet('snippet-tag-private', response.body, 3)
         self.assertInSnippet('see me', response.body, 3)
 
         self.login('random@some_other_domain.com')
@@ -922,13 +902,13 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertNumSnippets(response.body, 4)
         self.assertInSnippet('private@some_other_domain.com', response.body, 2)
         self.assertInSnippet('foreign', response.body, 2)
-        self.assertInSnippet('snippet-text-private', response.body, 2)
+        self.assertInSnippet('snippet-tag-private', response.body, 2)
         # Now we shouldn't see stuff from example.com
         self.assertInSnippet('private@example.com', response.body, 1)
         self.assertNotInSnippet('no see um', response.body, 1)
         # And we should also see public snippets, not in gray.
         self.assertInSnippet('public@example.com', response.body, 3)
-        self.assertNotInSnippet('snippet-text-private', response.body, 3)
+        self.assertNotInSnippet('snippet-tag-private', response.body, 3)
         self.assertInSnippet('see me', response.body, 3)
 
     def testPrivacyIsPerSnippet(self):

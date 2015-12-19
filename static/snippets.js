@@ -7,34 +7,63 @@ $(function() {
         $parentForm.removeClass("dirty").
             find(".undo-button, .save-button").
             prop("disabled", true);
-        $parentForm.find(".snippet-markdown-preview").hide();
+        $parentForm.find(".snippet-preview-container").hide();
     };
+
+    var handleChange = function handleChange() {
+        var $parentForm = $(".user-snippet-form");
+        var $previewText = $parentForm.find(".snippet-preview");
+        var $textarea = $(".snippet textarea");
+
+        var dirty = $textarea.val() !== $textarea.data("orig");
+        $parentForm.toggleClass("dirty", dirty);
+
+        $parentForm.find(".undo-button, .save-button").
+            prop("disabled", !dirty);
+
+        var $preview = $parentForm.find(".snippet-preview-container");
+        if (dirty) {
+            var textVal = $textarea.val();
+            $(".snippet-tag-none")[!textVal ? "show" : "hide"]();
+
+            if ($parentForm.find("input[name='is_markdown']")[0].checked) {
+                textVal = window.marked(textVal);
+            }
+
+            $previewText.html(textVal);
+            $preview.show();
+        } else {
+            $preview.hide();
+        }
+    };
+
+    window.marked.setOptions({sanitize: true});
+    $(".snippet-text-markdown").each(function(i, v) {
+        v.innerHTML = window.marked(v.innerHTML);
+    });
 
     // save the state of each textarea to allow undos
     $(".snippet textarea").each(function(i, v) {
         saveLocalSnippet(v);
     });
 
-    // measure dirtiness on keyup
-    $(".snippet textarea").on("keyup blur", function() {
-        var $parentForm = $(this).closest("form");
-
-        var dirty = $(this).val() !== $(this).data("orig");
-        $parentForm.toggleClass("dirty", dirty);
-
-        $parentForm.find(".undo-button, .save-button").
-            prop("disabled", !dirty);
-
-        var $preview = $parentForm.find(".snippet-markdown-preview");
-        var $previewText = $parentForm.find(".snippet-text-markdown");
-        if (dirty &&
-              $parentForm.find("input[name='is_markdown']").prop('checked')) {
-            $previewText.html(marked($(this).val()));
-            $preview.show();
-        } else {
-            $preview.hide();
-        }
+    $("input[name=private]").on("change", function(e) {
+        $(".snippet-tag-private")[this.checked ? "show" : "hide"]();
+        handleChange.call(this);
     });
+
+    $("input[name=is_markdown]").on("change", function() {
+        var isMarkdown = this.checked;
+        var $previewText = $(".snippet-preview");
+
+        $previewText.toggleClass("snippet-text-markdown", isMarkdown);
+        $previewText.toggleClass("snippet-text", !isMarkdown);
+
+        handleChange.call(this);
+    });
+
+    // measure dirtiness on change
+    $(".snippet textarea").on("keyup change", handleChange);
 
     // catch form submissions, submit and disable buttons
     $(".snippet form").on("submit", function(e) {
@@ -56,6 +85,7 @@ $(function() {
         $parentForm.removeClass("dirty").
             find(".undo-button, .save-button").
             prop("disabled", true);
+        $parentForm.find(".snippet-preview-container").hide();
     });
 
     // confirm window closings :)

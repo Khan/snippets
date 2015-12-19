@@ -249,11 +249,6 @@ h1 {
 .snippet-text-markdown img {
     max-width: 100%;
 }
-/* TODO(michelle): Work on a way to make this styling less hard-to-read */
-.snippet-text-private {
-    color: #888888;
-}
-
 
 /* Weekly snippets */
 .weekly-snippet-heading {
@@ -293,8 +288,26 @@ h1 {
     margin-top: 10px;
     padding-bottom: 5px;
 }
-.snippet-section h3 {
-    margin-bottom: 0;
+.snippet-section,
+.snippet-preview-container {
+    margin-top: 10px;
+}
+.snippet-section h3,
+.snippet-preview-container h3,
+.snippet-tag {
+    display: inline-block;
+    line-height: 23px;
+    margin: 0;
+    vertical-align: middle;
+}
+.snippet-tag {
+    background-color: #ddd;
+    border-radius: 20px;
+    margin-left: 0.4em;
+    padding: 0 8px;
+}
+.snippet-tag-private {
+    background-color: #edf;
 }
 
 /* User settings */

@@ -6,16 +6,16 @@
 {% for snippet in snippets %}
   <div class="snippet unique-snippet">
   {% if editable %}
-    <form action="/update_snippet" method="get">
+    <form action="/update_snippet" method="get" class="user-snippet-form">
 
     <div class="snippet-header clear-fix">
       <h2>
         <span class="snippets-title">Snippets for the week starting</span>
         {{snippet.week|readable_date}}
-        {% if snippet.text == null_snippet_text and snippet.week == one_week_ago %}
+        {% if not snippet.text and snippet.week == one_week_ago %}
         <span class="snippet-alert">Due today!</span>
         {% endif %}
-        {% if snippet.text == null_snippet_text and snippet.week == eight_days_ago %}
+        {% if not snippet.text and snippet.week == eight_days_ago %}
         <span class="snippet-alert">OVERDUE!</span>
         {% endif %}
       </h2>
@@ -53,10 +53,14 @@
           Snippet is written in <a href="http://daringfireball.net/projects/markdown/syntax">markdown syntax</a>
       </label>
     </div>
-    <textarea class="snippet-textarea" name="snippet" rows="6" cols="80">{{snippet.text}}</textarea>
-    <div class="snippet-markdown-preview" style="display:none">
+    <textarea class="snippet-textarea" name="snippet" rows="6" cols="80">{{snippet.text or ''}}</textarea>
+    <div class="snippet-preview-container" style="display: none">
       <h3>Snippet preview:</h3>
-      <div class="snippet-text-markdown"></div>
+      <span class="snippet-tag snippet-tag-private"
+          {% if not snippet.private %}style="display: none"{% endif %}>Private</span>
+      <span class="snippet-tag snippet-tag-none"
+          {% if snippet.text %}style="display: none"{% endif %}>No snippet</span>
+      <div class="snippet-preview snippet-text{% if snippet.is_markdown %}-markdown{% endif %}"></div>
     </div>
     </form>
   {% else %}
@@ -64,15 +68,12 @@
       <span class="snippets-title">Snippets for the week starting</span>
       {{snippet.week|readable_date}}
     </h2>
-
-    {% if snippet.is_markdown %}
-    <div class="snippet-text-markdown
-                {% if snippet.private %}snippet-text-private{% endif %}"
-         >{{snippet.text|safe}}</div>
-    {% else %}
-    <div class="snippet-text
-                {% if snippet.private %}snippet-text-private{% endif %}"
-         >{{snippet.text|urlize}}</div>
+    {% if snippet.text %}
+      {% if snippet.is_markdown %}
+      <div class="snippet-text-markdown">{{(snippet.text or '')|safe}}</div>
+      {% else %}
+      <div class="snippet-text">{{(snippet.text or '')|urlize}}</div>
+      {% endif %}
     {% endif %}
   {% endif %}
   </div>
@@ -80,12 +81,6 @@
 
 <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/marked/0.3.2/marked.min.js"></script>
-<script src="static/snippets.js?v1"></script>
-<script>
-      marked.setOptions({sanitize: true});
-      $(".snippet-text-markdown").each(function(i, v) {
-         v.innerHTML = marked(v.innerHTML);
-      });
-</script>
+<script src="static/snippets.js?v2"></script>
 
 {% include "footer.html" %}

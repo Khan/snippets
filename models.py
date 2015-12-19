@@ -1,6 +1,5 @@
 from google.appengine.ext import db
 
-NULL_SNIPPET_TEXT = '(No snippet for this week)'
 NULL_CATEGORY = '(unknown)'
 
 # Note: I use email address rather than a UserProperty to uniquely
@@ -36,6 +35,6 @@ class Snippet(db.Model):
     last_modified = db.DateTimeProperty(auto_now=True)
     email = db.StringProperty(required=True)  # week+email: key to this record
     week = db.DateProperty(required=True)     # the monday of the week
-    text = db.TextProperty(default=NULL_SNIPPET_TEXT)
+    text = db.TextProperty()
     private = db.BooleanProperty(default=False)       # snippet is private?
     is_markdown = db.BooleanProperty(default=False)   # text is markdown?

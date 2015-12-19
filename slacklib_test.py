@@ -110,7 +110,7 @@ class SlashCommandTest(unittest.TestCase):
     def testDumpCommand_empty(self):
         # user without a recent snippet should just see null text
         response = slacklib.command_dump('stuart@khanacademy.org')
-        self.assertIn(models.NULL_SNIPPET_TEXT, response)
+        self.assertIn('No snippet yet for this week', response)
 
     def testDumpCommand_formatting(self):
         # user with a snippet should just get it back unformatted

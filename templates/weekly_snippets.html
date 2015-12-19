@@ -17,14 +17,14 @@
     {% for snippet in category_and_snippets.1 %}
       <div class="snippet-section unique-snippet">
         <h3>{{snippet.email}}:</h3>
-        {% if snippet.is_markdown %}
-        <div class="snippet-text-markdown
-                    {% if snippet.private %}snippet-text-private{% endif %}"
-             >{{snippet.text|safe}}</div>
-        {% else %}
-        <div class="snippet-text
-                    {% if snippet.private %}snippet-text-private{% endif %}"
-             >{{snippet.text|urlize}}</div>
+        {% if snippet.private %}<span class="snippet-tag snippet-tag-private">Private</span>{% endif %}
+        {% if not snippet.text %}<span class="snippet-tag snippet-tag-none">No snippet</span>{% endif %}
+        {% if snippet.text %}
+          {% if snippet.is_markdown %}
+          <div class="snippet-text-markdown">{{snippet.text|safe}}</div>
+          {% else %}
+          <div class="snippet-text">{{snippet.text|urlize}}</div>
+          {% endif %}
         {% endif %}
       </div>
     {% endfor %}
@@ -34,9 +34,10 @@
 <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/marked/0.3.2/marked.min.js"></script>
 <script>
+      // Pulled from static/snippets.js
       marked.setOptions({sanitize: true});
       $(".snippet-text-markdown").each(function(i, v) {
-         v.innerHTML = marked(v.innerHTML);
+         v.innerHTML = window.marked(v.innerHTML);
       });
 </script>
 
