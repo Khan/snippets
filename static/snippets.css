@@ -147,6 +147,12 @@ a:focus {
     /* Darker blue for hovered/focused links */
     color: #23527c;
 }
+hr {
+    border: none;
+    border-top: 1px solid #ddd;
+    margin: 10px 20px;
+}
+
 /* Headings */
 h1 {
     font-weight: normal;
