@@ -16,6 +16,7 @@
 
     {% for snippet in category_and_snippets.1 %}
       <div class="snippet-section unique-snippet">
+        <img class="snippet-avatar" src="http://www.gravatar.com/avatar/{{snippet.email_md5_hash}}?s=50&d=retro">
         <h3>{{snippet.email}}:</h3>
         {% if snippet.private %}<span class="snippet-tag snippet-tag-private">Private</span>{% endif %}
         {% if not snippet.text %}<span class="snippet-tag snippet-tag-none">No snippet</span>{% endif %}

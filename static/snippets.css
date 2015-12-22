@@ -294,6 +294,9 @@ h1 {
     margin-top: 10px;
     padding-bottom: 5px;
 }
+.snippet-section {
+    position: relative;
+}
 .snippet-section,
 .snippet-preview-container {
     margin-top: 10px;
@@ -314,6 +317,16 @@ h1 {
 }
 .snippet-tag-private {
     background-color: #edf;
+}
+
+/* Avatars */
+.snippet-avatar {
+    border-radius: 2px;
+    /* Margin + avatar width */
+    left: -35px;
+    margin-right: 10px;
+    position: absolute;
+    width: 25px;
 }
 
 /* User settings */
@@ -390,6 +403,10 @@ table td {
     .centered-content {
         padding-left: 15px;
         padding-right: 15px;
+    }
+    .snippet-category {
+        /* Leave room for avatars and their margin */
+        padding-left: 35px;
     }
 
     .header {

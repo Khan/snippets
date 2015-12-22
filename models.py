@@ -1,4 +1,5 @@
 from google.appengine.ext import db
+import hashlib
 
 NULL_CATEGORY = '(unknown)'
 
@@ -38,3 +39,9 @@ class Snippet(db.Model):
     text = db.TextProperty()
     private = db.BooleanProperty(default=False)       # snippet is private?
     is_markdown = db.BooleanProperty(default=False)   # text is markdown?
+
+    @property
+    def email_md5_hash(self):
+        m = hashlib.md5()
+        m.update(self.email)
+        return m.hexdigest()
