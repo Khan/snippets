@@ -2,7 +2,7 @@ $(function() {
 
     // save save the state of the snippet in .data and disable buttons
     var saveLocalSnippet = function(textarea) {
-        var $parentForm = $(textarea).closest("form");
+        var $parentForm = $(textarea).closest(".user-snippet-form");
         $(textarea).data("orig", $(textarea).val());
         $parentForm.removeClass("dirty").
             find(".undo-button, .save-button").
@@ -11,9 +11,9 @@ $(function() {
     };
 
     var handleChange = function handleChange() {
-        var $parentForm = $(".user-snippet-form");
+        var $parentForm = $(this).closest(".user-snippet-form");
         var $previewText = $parentForm.find(".snippet-preview");
-        var $textarea = $(".snippet textarea");
+        var $textarea = $parentForm.find("textarea");
 
         var dirty = $textarea.val() !== $textarea.data("orig");
         $parentForm.toggleClass("dirty", dirty);
@@ -24,7 +24,7 @@ $(function() {
         var $preview = $parentForm.find(".snippet-preview-container");
         if (dirty) {
             var textVal = $textarea.val();
-            $(".snippet-tag-none")[!textVal ? "show" : "hide"]();
+            $parentForm.find(".snippet-tag-none")[!textVal ? "show" : "hide"]();
 
             if ($parentForm.find("input[name='is_markdown']")[0].checked) {
                 textVal = window.marked(textVal);
@@ -48,14 +48,17 @@ $(function() {
     });
 
     $("input[name=private]").on("change", function(e) {
-        $(".snippet-tag-private")[this.checked ? "show" : "hide"]();
+        var $parentForm = $(this).closest(".user-snippet-form");
+        var $privateTag = $parentForm.find(".snippet-tag-private");
+        $privateTag[this.checked ? "show" : "hide"]();
         handleChange.call(this);
     });
 
     $("input[name=is_markdown]").on("change", function() {
-        var isMarkdown = this.checked;
-        var $previewText = $(".snippet-preview");
+        var $parentForm = $(this).closest(".user-snippet-form");
+        var $previewText = $parentForm.find(".snippet-preview");
 
+        var isMarkdown = this.checked;
         $previewText.toggleClass("snippet-text-markdown", isMarkdown);
         $previewText.toggleClass("snippet-text", !isMarkdown);
 
@@ -66,7 +69,7 @@ $(function() {
     $(".snippet textarea").on("keyup change", handleChange);
 
     // catch form submissions, submit and disable buttons
-    $(".snippet form").on("submit", function(e) {
+    $(".user-snippet-form").on("submit", function(e) {
         e.preventDefault();
         var vals = $(this).serialize();
         var $textarea = $(this).find("textarea");
@@ -79,7 +82,7 @@ $(function() {
     // undo button behavior
     $(".snippet .undo-button").on("click", function(e) {
         e.preventDefault();
-        var $parentForm = $(this).closest("form");
+        var $parentForm = $(this).closest(".user-snippet-form");
         var $textarea = $parentForm.find("textarea");
         $textarea.val($textarea.data("orig"));
         $parentForm.removeClass("dirty").
