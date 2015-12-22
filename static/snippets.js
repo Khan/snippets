@@ -100,8 +100,7 @@ $(function() {
 
         this.$el.toggleClass("dirty", isDirty);
         this.$buttons.prop("disabled", !isDirty);
-        this.$preview[isDirty ? "show" : "hide"]();
-        this.$noneTag[this.state.content ? "hide" : "show"]();
+        this.$noneTag.toggle(!this.state.content);
         this.$previewText.html(this.state.markdown ?
             window.marked(this.state.content) : this.state.content);
         this.$secretTag[this.state.secret ? "show" : "hide"]();
@@ -121,12 +120,6 @@ $(function() {
     var snippets = $(".user-snippet-form").map(function() {
         return new Snippet($(this));
     }).get();
-
-    // Apply markdown formatting to all markdown-y snippets.
-    window.marked.setOptions({sanitize: true});
-    $(".snippet-text-markdown").each(function(i, v) {
-        v.innerHTML = window.marked(v.innerHTML);
-    });
 
     // Confirm window closings :)
     $(window).on("beforeunload", function() {

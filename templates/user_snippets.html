@@ -54,7 +54,7 @@
       </label>
     </div>
     <textarea class="snippet-textarea" name="snippet" rows="6" cols="80">{{snippet.text or ''}}</textarea>
-    <div class="snippet-preview-container" style="display: none">
+    <div class="snippet-preview-container">
       <h3>Snippet preview:</h3>
       <span class="snippet-tag snippet-tag-private"
           {% if not snippet.private %}style="display: none"{% endif %}>Private</span>
@@ -81,6 +81,6 @@
 
 <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/marked/0.3.2/marked.min.js"></script>
-<script src="static/snippets.js?v2"></script>
+<script src="static/snippets.js?v3"></script>
 
 {% include "footer.html" %}
