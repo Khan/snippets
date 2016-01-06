@@ -54,8 +54,21 @@ class SnippetsTestBase(unittest.TestCase):
         self.request_fetcher = webtest.TestApp(snippets.application)
         snippets._TODAY_FN = lambda: _TEST_TODAY
 
+        # Make sure we never accidentally send messages to chat.
+        self.old_send_to_hipchat_room = hipchatlib.send_to_hipchat_room
+        self.hipchat_sends = []
+        hipchatlib.send_to_hipchat_room = (
+            lambda *args: self.hipchat_sends.append(args))
+
+        self.old_send_to_slack_channel = slacklib.send_to_slack_channel
+        self.slack_sends = []
+        slacklib.send_to_slack_channel = (
+            lambda *args: self.slack_sends.append(args))
+
     def tearDown(self):
         self.testbed.deactivate()
+        hipchatlib.send_to_hipchat_room = self.old_send_to_hipchat_room
+        slacklib.send_to_slack_channel = self.old_send_to_slack_channel
 
     def login(self, email):
         self.testbed.setup_env(user_email=email, overwrite=True)
@@ -426,7 +439,7 @@ class AppSettingsTestCase(UserTestBase):
     def testDomainsParsing(self):
         self.request_fetcher.get(
             '/admin/update_settings?domains=a.com,b.com++c.com%0Bd.com,%0B')
-        app_settings = snippets._get_app_settings()
+        app_settings = models.AppSettings.get()
         self.assertEqual(['a.com', 'b.com', 'c.com', 'd.com'],
                          app_settings.domains)
 
@@ -1383,6 +1396,7 @@ class SendingEmailTestCase(UserTestBase):
 class SendingChatTestCase(UserTestBase):
     """Test we correctly send to hipchat/slack."""
     def setUp(self):
+        # (The superclass sets up hipchat_sends and slack_sends for us.)
         super(SendingChatTestCase, self).setUp()
         # Let's set up default chat configs.
         app_settings = models.AppSettings.get()
@@ -1392,22 +1406,6 @@ class SendingChatTestCase(UserTestBase):
         app_settings.slack_token = 'st'
         app_settings.slack_slash_token = 'sst'
         app_settings.put()
-
-        # We need to mock out the actual sending, of course!
-        self.old_send_to_hipchat_room = hipchatlib.send_to_hipchat_room
-        self.hipchat_sends = []
-        hipchatlib.send_to_hipchat_room = (
-            lambda *args: self.hipchat_sends.append(args))
-
-        self.old_send_to_slack_channel = slacklib.send_to_slack_channel
-        self.slack_sends = []
-        slacklib.send_to_slack_channel = (
-            lambda *args: self.slack_sends.append(args))
-
-    def tearDown(self):
-        super(SendingChatTestCase, self).tearDown()
-        hipchatlib.send_to_hipchat_room = self.old_send_to_hipchat_room
-        slacklib.send_to_slack_channel = self.old_send_to_slack_channel
 
     def test_send_to_chat(self):
         self.request_fetcher.get('/admin/send_friday_reminder_chat')
