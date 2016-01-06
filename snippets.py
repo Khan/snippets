@@ -21,31 +21,13 @@ from google.appengine.ext import db
 import webapp2
 from webapp2_extras import jinja2
 
+import hipchatlib
 import models
+import slacklib
 import util
 
 # the URL to use for notifications directing people to this site
 _URL = 'https://weekly-snippets.appspot.com'
-
-
-# Have the cron jobs send to HipChat in addition to email?
-_SEND_TO_HIPCHAT = True
-if _SEND_TO_HIPCHAT:
-    import hipchatlib
-    if not hipchatlib.hipchat_init():
-        _SEND_TO_HIPCHAT = False
-        logging.error('Unable to initialize HipChat; not sending msgs there')
-
-
-# Enable the slack integration?
-_ENABLE_SLACK = True   # enable overall slack integration, incl. slash cmds
-_SEND_TO_SLACK = True  # send reminder messages to Slack
-if _ENABLE_SLACK:
-    import slacklib
-    if not slacklib.slack_init():
-        _SEND_TO_SLACK = False
-        _ENABLE_SLACK = False
-        logging.error('Unable to initialize Slack; not sending msgs there')
 
 
 # This allows mocking in a different day, for testing.
@@ -74,24 +56,6 @@ def _current_user_email():
     return users.get_current_user().email().lower()
 
 
-def _get_app_settings(create_if_missing=False, domains=None):
-    """Return the global app settings, or raise ValueError if none found.
-
-    If create_if_missing is true, we create app settings if none are found,
-    rather than raising a ValueError.  The app settings are initialized
-    with the given value for 'domains'.  The new entity is *not* put to
-    the datastore.
-    """
-    retval = models.AppSettings.get_by_key_name('global_settings')
-    if retval:
-        return retval
-    elif create_if_missing:
-        return models.AppSettings(key_name='global_settings',
-                                  created=_TODAY_FN(), domains=domains)
-    else:
-        raise ValueError("Need to set global application settings.")
-
-
 def _get_or_create_user(email, put_new_user=True):
     """Return the user object with the given email, creating if if needed.
 
@@ -116,13 +80,13 @@ def _get_or_create_user(email, put_new_user=True):
     else:
         # You can only create a new user under one of the app-listed domains.
         try:
-            app_settings = _get_app_settings()
+            app_settings = models.AppSettings.get()
         except ValueError:
             # TODO(csilvers): do this instead:
             #                 /admin/settings?redirect_to=user_setting
             return None
 
-        domain = email.split('@')[1]
+        domain = email.split('@')[-1]
         allowed_domains = app_settings.domains
         if domain not in allowed_domains:
             # TODO(csilvers): turn this into a 403 somewhere
@@ -171,11 +135,20 @@ def _can_view_private_snippets(my_email, snippet_email):
 
 
 def _send_to_chat(msg):
-    """Sends a message to the main room/channel for active chat integrations."""
-    if _SEND_TO_HIPCHAT:
-        hipchatlib.send_to_hipchat_room('Khan Academy', msg)
-    if _SEND_TO_SLACK:
-        slacklib.send_to_slack_channel('#khan-academy', msg)
+    """Send a message to the main room/channel for active chat integrations."""
+    try:
+        app_settings = models.AppSettings.get()
+    except ValueError:
+        logging.warning('Not sending to chat: app settings not configured')
+        return
+
+    hipchat_room = app_settings.hipchat_room
+    if hipchat_room:
+        hipchatlib.send_to_hipchat_room(hipchat_room, msg)
+
+    slack_channel = app_settings.slack_channel
+    if slack_channel:
+        slacklib.send_to_slack_channel(slack_channel, msg)
 
 
 class BaseHandler(webapp2.RequestHandler):
@@ -204,7 +177,7 @@ class UserPage(BaseHandler):
             # up the user settings.
             if users.is_current_user_admin():
                 try:
-                    _get_app_settings()
+                    models.AppSettings.get()
                 except ValueError:
                     self.redirect("/admin/settings?redirect_to=user_setting"
                                   "&msg=Welcome+to+the+snippet+server!+"
@@ -504,9 +477,9 @@ class AppSettings(BaseHandler):
     """
 
     def get(self):
-        my_domain = _current_user_email().split('@')[1]
-        app_settings = _get_app_settings(create_if_missing=True,
-                                         domains=[my_domain])
+        my_domain = _current_user_email().split('@')[-1]
+        app_settings = models.AppSettings.get(create_if_missing=True,
+                                              domains=[my_domain])
 
         template_values = {
             'logout_url': users.create_logout_url('/'),
@@ -516,6 +489,8 @@ class AppSettings(BaseHandler):
             'view_week': util.existingsnippet_monday(_TODAY_FN()),
             'redirect_to': self.request.get('redirect_to', ''),
             'settings': app_settings,
+            'slack_slash_commands': (
+                slacklib.command_usage().strip())
         }
         self.render_response('app_settings.html', template_values)
 
@@ -533,6 +508,12 @@ class UpdateAppSettings(BaseHandler):
         default_private = self.request.get('private') == 'yes'
         default_markdown = self.request.get('markdown') == 'yes'
         default_email = self.request.get('reminder_email') == 'yes'
+        email_from = self.request.get('email_from')
+        hipchat_room = self.request.get('hipchat_room')
+        hipchat_token = self.request.get('hipchat_token')
+        slack_channel = self.request.get('slack_channel')
+        slack_token = self.request.get('slack_token')
+        slack_slash_token = self.request.get('slack_slash_token')
 
         # Turn domains into a list.  Allow whitespace or comma to separate.
         domains = re.sub(r'\s+', ',', domains)
@@ -540,12 +521,18 @@ class UpdateAppSettings(BaseHandler):
 
         @db.transactional
         def update_settings():
-            app_settings = _get_app_settings(create_if_missing=True,
-                                             domains=domains)
+            app_settings = models.AppSettings.get(create_if_missing=True,
+                                                  domains=domains)
             app_settings.domains = domains
             app_settings.default_private = default_private
             app_settings.default_markdown = default_markdown
             app_settings.default_email = default_email
+            app_settings.email_from = email_from
+            app_settings.hipchat_room = hipchat_room
+            app_settings.hipchat_token = hipchat_token
+            app_settings.slack_channel = slack_channel
+            app_settings.slack_token = slack_token
+            app_settings.slack_slash_token = slack_slash_token
             app_settings.put()
 
         update_settings()
@@ -682,10 +669,17 @@ def _get_email_to_current_snippet_map(today):
     return retval
 
 
-def _send_snippets_mail(to, subject, template_path, template_values):
+def _maybe_send_snippets_mail(to, subject, template_path, template_values):
+    try:
+        app_settings = models.AppSettings.get()
+    except ValueError:
+        logging.error('Not sending email: app settings are not configured.')
+        return
+    if not app_settings.email_from:
+        return
+
     jinja2_instance = jinja2.get_jinja2()
-    mail.send_mail(sender=('Khan Academy Snippet Server'
-                           ' <csilvers+snippets@khanacademy.org>'),
+    mail.send_mail(sender=app_settings.email_from,
                    to=to,
                    subject=subject,
                    body=jinja2_instance.render_template(template_path,
@@ -697,8 +691,8 @@ def _send_snippets_mail(to, subject, template_path, template_values):
     time.sleep(2)
 
 
-class SendFridayReminderHipChat(BaseHandler):
-    """Send a chat message to the main KA room."""
+class SendFridayReminderChat(BaseHandler):
+    """Send a chat message to the configured chat room(s)."""
 
     def get(self):
         msg = 'Reminder: Weekly snippets due Monday at 5pm. ' + _URL
@@ -710,8 +704,8 @@ class SendReminderEmail(BaseHandler):
 
     def _send_mail(self, email):
         template_values = {}
-        _send_snippets_mail(email, 'Weekly snippets due today at 5pm',
-                            'reminder_email.txt', template_values)
+        _maybe_send_snippets_mail(email, 'Weekly snippets due today at 5pm',
+                                  'reminder_email.txt', template_values)
 
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
@@ -732,8 +726,8 @@ class SendViewEmail(BaseHandler):
 
     def _send_mail(self, email, has_snippets):
         template_values = {'has_snippets': has_snippets}
-        _send_snippets_mail(email, 'Weekly snippets are ready!',
-                            'view_email.txt', template_values)
+        _maybe_send_snippets_mail(email, 'Weekly snippets are ready!',
+                                  'view_email.txt', template_values)
 
     def get(self):
         email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
@@ -754,11 +748,10 @@ application = webapp2.WSGIApplication([
     ('/admin/settings', AppSettings),
     ('/admin/update_settings', UpdateAppSettings),
     ('/admin/manage_users', ManageUsers),
-    ('/admin/send_friday_reminder_hipchat', SendFridayReminderHipChat),
+    ('/admin/send_friday_reminder_chat', SendFridayReminderChat),
     ('/admin/send_reminder_email', SendReminderEmail),
     ('/admin/send_view_email', SendViewEmail),
     ('/admin/test_send_to_hipchat', hipchatlib.TestSendToHipchat),
+    ('/slack', slacklib.SlashCommand),
     ],
     debug=True)
-if _ENABLE_SLACK:
-    application.router.add(('/slack', slacklib.SlashCommand))

@@ -9,9 +9,9 @@
   hide users</a></p>
 
 
-<h1>Application settings</h1>
-
 <form action="/admin/update_settings" method="get" class="user-settings">
+
+<h1>Application settings</h1>
 
 <div class="user-settings-block">
   <label class="user-settings-label" for="domains">
@@ -38,7 +38,7 @@
 </fieldset>
 
 <fieldset class="user-settings-block">
-  <legend class="user-settings-label">Shnould new users default to
+  <legend class="user-settings-label">Should new users default to
   having snippets be private (only visible by people in their domain)?:</legend>
   <input id="private-yes" type="radio" name="private" value="yes"
          {% if settings.default_private %}checked{% endif %}>
@@ -58,6 +58,62 @@
          {% if not settings.default_email %}checked{% endif %}>
          <label for="reminder-email-no">no</label>
 </fieldset>
+
+<h1>Chat and email settings</h1>
+
+<div class="user-settings-block">
+  <label class="user-settings-label" for="email_from">Email 'from' address:</label>
+  <input id="email_from" type="text" name="email_from" value="{{settings.email_from}}">
+  <p>If set, will send a weekly reminder email and "snippets ready!"
+  email to all users.  The mail will appear to come from this email
+  address.</p>
+</div>
+
+<div class="user-settings-block">
+  <label class="user-settings-label" for="hipchat_room">HipChat room:</label>
+  <input id="hipchat_room" type="text" name="hipchat_room" value="{{settings.hipchat_room}}">
+  <p>If set, will send a weekly reminder message and "snippets ready!"
+  message to the specified room in HipChat.  If not set, will not send
+  to HipChat.</p>
+</div>
+
+<div class="user-settings-block">
+  <label class="user-settings-label" for="hipchat_token">HipChat token:</label>
+  <input id="hipchat_token" type="text" name="hipchat_token" value="{{settings.hipchat_token}}">
+  <p>Needed to send messages via HipChat.  You can get a token
+  from <a href="https://www.hipchat.com/admin/api">hipchat</a>.</p>
+</div>
+
+<div class="user-settings-block">
+  <label class="user-settings-label" for="slack_channel">Slack channel:</label>
+  <input id="slack_channel" type="text" name="slack_channel" value="{{settings.slack_channel}}">
+  <p>If set, will send a weekly reminder message and "snippets ready!"
+  message to the specified channel in Slack.  If not set, will not send
+  to Slack.  Include the leading <code>#</code>.</p>
+</div>
+
+<div class="user-settings-block">
+  <label class="user-settings-label" for="slack_token">Slack bot token:</label>
+  <input id="slack_token" type="text" name="slack_token" value="{{settings.slack_token}}">
+  <p>Needed to send messages via
+  Slack.  <a href="https://api.slack.com/bot-users">instructions for
+  getting a Slack bot token</a>.</p>
+</div>
+
+<div class="user-settings-block">
+  <label class="user-settings-label" for="slack_slash_token">Slack slash token:</label>
+  <input id="slack_slash_token" type="text" name="slack_slash_token" value="{{settings.slack_slash_token}}">
+  <p>If non-empty, enable slash-commands to work in Slack, to interact
+  with snippets from within Slack.  Slack slash-commands can be
+  enabled/disabled independently from Slack messaging.  See the bottom
+  of <a href="https://api.slack.com/slash-commands">this page</a> for
+  instructions (you only need to do the first step).  The command
+  should be called <code>/snippets</code>.   The following
+  slash-commands are supported:</p>
+  <blockquote><pre>
+{{slack_slash_commands}}
+  </pre></blockquote>
+</div>
 
 <input type="hidden" name="redirect_to" value="{{redirect_to}}">
 

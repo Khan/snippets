@@ -7,22 +7,13 @@ At Khan Academy we use Slack for messaging!  This provides Slack
 integration with the snippet server, as well prototype CLI style
 interaction with snippets via the Slack "slash commands" integration.
 
-Talking to the Slack Web API requires a token.  The admin must
-set this token by creating a file called 'slack-webapi.cfg' in this
-directory.  It should look like this:
---- vvv contents below vvv---
-token = 01234567890abcdef
---- ^^^ contents above ^^^---
-except instead of '01234567890abcdef', it should have the token value.
+Talking to the Slack Web API requires a token.  The admin must enter
+the value of this token on /admin/settings.  There are instructions
+there for how to do so.
 
-Additionally, the "slash commands" integration in Slack will post a token with
-each request.  We check this token for security reasons, so we get that in
-'slack-slash.cfg' in a similar fashion.
-
-Note that there are no quotes, and there must be spaces around the =,
-or this won't work.
-
-Do not commit *.cfg into git!  It's a secret.
+Additionally, the "slash commands" integration in Slack will post a
+token with each request.  We check this token for security reasons, so
+we get that from /admin/settings as well.
 """
 
 import datetime
@@ -38,18 +29,15 @@ import webapp2
 from google.appengine.ext import db
 from google.appengine.api import memcache
 
+import models
 import util
 
-# the Slack slash command token is sent to us by the Slack server with every
-# incoming request.  We should verify it for security. To make it easier to
-# develop, you can disable this while testing.
-_SLACK_SLASH_TOKEN = None
+# The Slack slash command token is sent to us by the Slack server with
+# every incoming request.  We verify it here for security. To make it
+# easier to develop, you can disable the verification step while
+# testing.
 _REQUIRE_SLASH_TOKEN = True
 
-# the Slack Web API token is required to make outgoing API calls to the Slack
-# API with full permissions to the KhanAcademy team (needed to retrieve email
-# addresses for the users and/or to post globally).
-_SLACK_WEBAPI_TOKEN = None
 
 # This allows mocking in a different day, for testing.
 _TODAY_FN = datetime.datetime.now
@@ -58,39 +46,17 @@ _TODAY_FN = datetime.datetime.now
 _WEB_URL = 'http://' + os.environ.get('SERVER_NAME', 'localhost')
 
 
-def _read_token_from_file(filename):
-    config = open(filename).read().strip()
-    if not config.startswith('token = '):
-        raise ValueError('%s should look like "token = <value>\n"')
-    return config[len('token = '):]
-
-
-def slack_init():
-    """Initialize slack, returns true if it worked ok."""
-    global _SLACK_SLASH_TOKEN
-    global _SLACK_WEBAPI_TOKEN
-
-    try:
-        _SLACK_WEBAPI_TOKEN = _read_token_from_file('slack-webapi.cfg')
-        if _REQUIRE_SLASH_TOKEN:
-            _SLACK_SLASH_TOKEN = _read_token_from_file('slack-slash.cfg')
-        logging.info('Loaded Slack integration')
-        return True
-    except IOError:
-        logging.error('Unable to find needed config file; disabling Slack')
-        return False
-    except ValueError, why:
-        logging.error('%s; disabling Slack', why)
-        return False
-
-
 def _web_api(api_method, payload):
     """Send a payload to the Slack Web API, automatically inserting token.
+
+    Uses AppSettings.slack_token to get the token.  Callers must ensure
+    that slack_token exists (or this call will fail).
 
     Raises a ValueError if something goes wrong.
     Returns a dictionary with the response.
     """
-    payload.setdefault('token', _SLACK_WEBAPI_TOKEN)
+    app_settings = models.AppSettings.get()
+    payload.setdefault('token', app_settings.slack_token)
     uri = 'https://slack.com/api/' + api_method
     r = urllib2.urlopen(uri, urllib.urlencode(payload))
 
@@ -159,7 +125,6 @@ def send_to_slack_channel(channel, msg):
 
 def command_usage():
     return textwrap.dedent("""
-    ```
     /snippets                displays your current snippets
     /snippets list           displays your current snippets
     /snippets last           displays your snippets from last week
@@ -167,7 +132,6 @@ def command_usage():
     /snippets del [n]        removes snippet number N
     /snippets dump           shows your snippets list unformatted
     /snippets help           display this help screen
-    ```
     """)
 
 
@@ -419,10 +383,17 @@ class SlashCommand(webapp2.RequestHandler):
         """
         req, res = self.request, self.response
 
+        expected_token = models.AppSettings.get().slack_slash_token
+
+        if not expected_token:
+            res.write('Slack slash commands disabled. An admin '
+                      'can enable them at /admin/settings')
+            return
+
         # verify slash API post token for security
         if _REQUIRE_SLASH_TOKEN:
             token = req.get('token')
-            if token != _SLACK_SLASH_TOKEN:
+            if token != expected_token:
                 logging.error("POST MADE WITH INVALID TOKEN")
                 res.write("OH NO YOU DIDNT! Security issue plz contact admin.")
                 return
@@ -482,6 +453,7 @@ class SlashCommand(webapp2.RequestHandler):
             else:
                 logging.info('unknown command %s from user %s', cmd, user_name)
                 res.write(
-                    "I don't understand what you said! " +
-                    "Perhaps you meant one of these?" + command_usage()
+                    "I don't understand what you said! "
+                    "Perhaps you meant one of these?\n```%s```\n"
+                    % command_usage()
                 )

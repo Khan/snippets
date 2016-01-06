@@ -33,7 +33,9 @@ from google.appengine.ext import db
 from google.appengine.ext import testbed
 import webtest   # may need to do 'pip install webtest'
 
+import hipchatlib
 import models
+import slacklib
 import snippets
 
 
@@ -60,7 +62,7 @@ class SnippetsTestBase(unittest.TestCase):
         self.testbed.setup_env(user_id=email, overwrite=True)
         self.testbed.setup_env(user_is_admin='0', overwrite=True)
         # Now make sure there are global settings.
-        snippets._get_app_settings(
+        models.AppSettings.get(
             create_if_missing=True,
             domains=['example.com', 'some_other_domain.com']
         ).put()
@@ -319,7 +321,7 @@ class NewUserTestCase(UserTestBase):
     def testNewAdminWithNoAppSettings(self):
         """The first time someone logs in, we should go to app settings."""
         self.set_is_admin()
-        app_settings = snippets._get_app_settings()
+        app_settings = models.AppSettings.get()
         app_settings.delete()
 
         response = self.request_fetcher.get('/')
@@ -330,7 +332,7 @@ class NewUserTestCase(UserTestBase):
     def testNewAdminContinueUrls(self):
         """We should go from app settings to user settings to snippet."""
         self.set_is_admin()
-        app_settings = snippets._get_app_settings()
+        app_settings = models.AppSettings.get()
         app_settings.delete()
 
         response = self.request_fetcher.get('/')
@@ -351,14 +353,14 @@ class NewUserTestCase(UserTestBase):
 
     def testNewUserWithNoAppSettings(self):
         """For non-admins, we should not offer the app-settings page."""
-        app_settings = snippets._get_app_settings()
+        app_settings = models.AppSettings.get()
         app_settings.delete()
 
         response = self.request_fetcher.get('/')
         self.assertIn('<title>New user</title>', response.body)
 
     def testNewUserInheritsAppDefaults(self):
-        app_settings = snippets._get_app_settings()
+        app_settings = models.AppSettings.get()
         app_settings.default_markdown = True
         app_settings.default_private = True
         app_settings.put()
@@ -1042,7 +1044,7 @@ class PrivateSnippetTestCase(UserTestBase):
 
     def testDomainMatching(self):
         # Let's make it legal for all these domains to log in.
-        app_settings = snippets._get_app_settings()
+        app_settings = models.AppSettings.get()
         app_settings.domains = ['example.com', 'example.comm', 'example.co',
                                 'my-example.com', 'ample.com']
         app_settings.put()
@@ -1225,8 +1227,6 @@ class SendingEmailTestCase(UserTestBase):
         super(SendingEmailTestCase, self).setUp()
         self.testbed.init_mail_stub()
         self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
-        # Also make sure we suppress sending to hipchat for tests.
-        snippets._SEND_TO_HIPCHAT = False
         # The email-senders sleep 2 seconds between sends for quota
         # reasons.  We don't want that for most tests, so we suppress
         # it.  The quota test will redefine time.sleep itself.
@@ -1280,6 +1280,17 @@ class SendingEmailTestCase(UserTestBase):
     def testMustBeAdminToSendMail(self):
         # Don't know how to test this -- it's enforced by app.yaml
         pass
+
+    def testDoNotSendMailWithoutSetting(self):
+        app_settings = models.AppSettings.get()
+        app_settings.delete()
+        self.request_fetcher.get('/admin/send_reminder_email')
+        self.assertEmailNotSentTo('does_not_have_snippet@example.com')
+
+    def testDefaultEmailFrom(self):
+        app_settings = models.AppSettings.get()
+        self.assertEqual("Snippet Server <user+snippets@example.com>",
+                         app_settings.email_from)
 
     def testSendReminderEmail(self):
         self.request_fetcher.get('/admin/send_reminder_email')
@@ -1367,6 +1378,65 @@ class SendingEmailTestCase(UserTestBase):
         self.assertTrue(self.total_sleep_seconds <= len(users) * 2.5,
                         '%d <= %d' % (self.total_sleep_seconds,
                                       len(users) * 2.5))
+
+
+class SendingChatTestCase(UserTestBase):
+    """Test we correctly send to hipchat/slack."""
+    def setUp(self):
+        super(SendingChatTestCase, self).setUp()
+        # Let's set up default chat configs.
+        app_settings = models.AppSettings.get()
+        app_settings.hipchat_room = 'hipchat r00m'
+        app_settings.hipchat_token = 'ht'
+        app_settings.slack_channel = '#slack_chann3l'
+        app_settings.slack_token = 'st'
+        app_settings.slack_slash_token = 'sst'
+        app_settings.put()
+
+        # We need to mock out the actual sending, of course!
+        self.old_send_to_hipchat_room = hipchatlib.send_to_hipchat_room
+        self.hipchat_sends = []
+        hipchatlib.send_to_hipchat_room = (
+            lambda *args: self.hipchat_sends.append(args))
+
+        self.old_send_to_slack_channel = slacklib.send_to_slack_channel
+        self.slack_sends = []
+        slacklib.send_to_slack_channel = (
+            lambda *args: self.slack_sends.append(args))
+
+    def tearDown(self):
+        super(SendingChatTestCase, self).tearDown()
+        hipchatlib.send_to_hipchat_room = self.old_send_to_hipchat_room
+        slacklib.send_to_slack_channel = self.old_send_to_slack_channel
+
+    def test_send_to_chat(self):
+        self.request_fetcher.get('/admin/send_friday_reminder_chat')
+
+        self.assertEqual(1, len(self.hipchat_sends))
+        self.assertEqual('hipchat r00m', self.hipchat_sends[0][0])
+        self.assertIn('Weekly snippets due', self.hipchat_sends[0][1])
+
+        self.assertEqual(1, len(self.slack_sends))
+        self.assertEqual('#slack_chann3l', self.slack_sends[0][0])
+        self.assertIn('Weekly snippets due', self.slack_sends[0][1])
+
+    def test_disable_hipchat(self):
+        app_settings = models.AppSettings.get()
+        app_settings.hipchat_room = ''
+        app_settings.put()
+
+        self.request_fetcher.get('/admin/send_friday_reminder_chat')
+        self.assertEqual([], self.hipchat_sends)
+        self.assertNotEqual([], self.slack_sends)
+
+    def test_disable_slack(self):
+        app_settings = models.AppSettings.get()
+        app_settings.slack_channel = ''
+        app_settings.put()
+
+        self.request_fetcher.get('/admin/send_friday_reminder_chat')
+        self.assertEqual([], self.slack_sends)
+        self.assertNotEqual([], self.hipchat_sends)
 
 
 class TitleCaseTestCase(unittest.TestCase):

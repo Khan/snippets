@@ -3,19 +3,9 @@
 At Khan Academy we use HipChat for messaging.  This provides HipChat
 integration with the snippet server.
 
-Talking to the Khan HipChat 'rooms' requires a token.  The admin must
-set this token by creating a file called 'hipchat.cfg' in this
-directory.  It should look like this:
---- vvv contents below vvv---
-token = 01234567890abcdef
---- ^^^ contents above ^^^---
-except instead of '01234567890abcdef', it should have the token value.
-For Khan Academy, this is stored in secrets.py.
-
-Note that there are no quotes, and there must be spaces around the =,
-or this won't work.
-
-Do not commit hipchat.cfg into git!  It's a secret.
+Talking to the HipChat 'rooms' requires a token.  The admin must enter
+the value of this token on /admin/settings.  There are instructions
+there for how to do so.
 """
 
 import logging
@@ -24,26 +14,7 @@ import urllib2
 
 from google.appengine.ext import webapp
 
-
-_TOKEN = None
-
-
-def hipchat_init():
-    """Initializes hipchat, returns true if it worked ok."""
-    global _TOKEN
-    config_fname = 'hipchat.cfg'
-    try:
-        config = open(config_fname).read().strip()
-        if not config.startswith('token = '):
-            raise ValueError('%s should look like "token = <value>\n"')
-        _TOKEN = config[len('token = '):]
-        return True
-    except IOError:
-        logging.error('Unable to open %s; disabling HipChat' % config_fname)
-        return False
-    except ValueError, why:
-        logging.error('%s; disabling HipChat' % why)
-        return False
+import models
 
 
 def _make_hipchat_api_call(post_dict_with_secret_token):
@@ -55,26 +26,38 @@ def _make_hipchat_api_call(post_dict_with_secret_token):
 
 
 def send_to_hipchat_room(room_name, message):
-    """Assuming hipchat_init() was called previously, send message to room."""
+    """Send message to room.  Token is taken from AppSettings.hipchat_token."""
+    if not room_name:
+        return
+
+    try:
+        app_settings = models.AppSettings.get().hipchat_token
+    except ValueError:
+        logging.warning('Not sending to HipChat: app settings not configured')
+        return
+
+    token = app_settings.hipchat_token
+    if not token:
+        # The token should always be set if the room-name is set.
+        logging.error('Not sending to HipChat: no hipchat token set in '
+                      '/admin/settings')
+        return
+
     # urlencode requires that all fields be in utf-8.
     post_dict = {
         'room_id': room_name.encode('utf-8'),
         'from': 'snippet-server',
         'notify': 1,
         'message': message.encode('utf-8'),
-        'auth_token': _TOKEN,
+        'auth_token': token,
     }
 
-    if not _TOKEN:
-        logging.warning("Not sending this to hipchat (no token found): %s"
-                        % post_dict)
-    else:
-        try:
-            _make_hipchat_api_call(post_dict)
-        except Exception, why:
-            del post_dict['auth_token']     # don't log the secret token!
-            logging.error('Failed sending %s to hipchat: %s'
-                          % (post_dict, why))
+    try:
+        _make_hipchat_api_call(post_dict)
+    except Exception, why:
+        del post_dict['auth_token']     # don't log the secret token!
+        logging.error('Failed sending %s to hipchat: %s'
+                      % (post_dict, why))
 
 
 class TestSendToHipchat(webapp.RequestHandler):
