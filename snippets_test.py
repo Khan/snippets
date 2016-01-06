@@ -59,6 +59,11 @@ class SnippetsTestBase(unittest.TestCase):
         self.testbed.setup_env(user_email=email, overwrite=True)
         self.testbed.setup_env(user_id=email, overwrite=True)
         self.testbed.setup_env(user_is_admin='0', overwrite=True)
+        # Now make sure there are global settings.
+        snippets._get_app_settings(
+            create_if_missing=True,
+            domains=['example.com', 'some_other_domain.com']
+        ).put()
 
     def set_is_admin(self):
         self.testbed.setup_env(user_is_admin='1', overwrite=True)
@@ -304,12 +309,124 @@ class NewUserTestCase(UserTestBase):
         self.assertIn('name="redirect_to" value="snippet_entry"',
                       settings_response.body)
 
-        # Now kinda-simulate clicking on the submit button
+        # Now kinda-simulate clicking on the submit button.
         done_response = self.request_fetcher.get(
             '/update_settings?u=user@example.com&redirect_to=snippet_entry')
         if done_response.status_int in (301, 302, 303, 304):
             done_response = done_response.follow()
         self.assertIn('Snippets for user@example.com', done_response.body)
+
+    def testNewAdminWithNoAppSettings(self):
+        """The first time someone logs in, we should go to app settings."""
+        self.set_is_admin()
+        app_settings = snippets._get_app_settings()
+        app_settings.delete()
+
+        response = self.request_fetcher.get('/')
+        if response.status_int in (301, 302, 303, 304):
+            response = response.follow()
+        self.assertIn('<title>Application settings</title>', response.body)
+
+    def testNewAdminContinueUrls(self):
+        """We should go from app settings to user settings to snippet."""
+        self.set_is_admin()
+        app_settings = snippets._get_app_settings()
+        app_settings.delete()
+
+        response = self.request_fetcher.get('/')
+        if response.status_int in (301, 302, 303, 304):
+            response = response.follow()
+        m = re.search(r'name="redirect_to" value="([^"]*)"', response.body)
+        continue_url = m.group(1)
+
+        # Now kinda-simulate clicking on the submit button.
+        done_response = self.request_fetcher.get(
+            '/admin/update_settings?domains=example.com&redirect_to=%s'
+            % continue_url)
+        if done_response.status_int in (301, 302, 303, 304):
+            done_response = done_response.follow()
+        self.assertIn('<title>User settings', done_response.body)
+        self.assertIn('name="redirect_to" value="snippet_entry"',
+                      done_response.body)
+
+    def testNewUserWithNoAppSettings(self):
+        """For non-admins, we should not offer the app-settings page."""
+        app_settings = snippets._get_app_settings()
+        app_settings.delete()
+
+        response = self.request_fetcher.get('/')
+        self.assertIn('<title>New user</title>', response.body)
+
+    def testNewUserInheritsAppDefaults(self):
+        app_settings = snippets._get_app_settings()
+        app_settings.default_markdown = True
+        app_settings.default_private = True
+        app_settings.put()
+
+        response = self.request_fetcher.get('/')
+        m = re.search(r'<a href="(/settings[^"]*)">', response.body)
+        continue_url = m.group(1)
+        settings_response = self.request_fetcher.get(continue_url)
+
+        self.assertRegexpMatches(settings_response.body,
+                                 r'name="markdown"\s+value="yes"\s+checked')
+        self.assertRegexpMatches(settings_response.body,
+                                 r'name="private"\s+value="yes"\s+checked')
+
+        # Now change the app-defaults and make sure this is reflected in
+        # the new-user setup page.
+        app_settings.default_markdown = False
+        app_settings.default_private = False
+        app_settings.put()
+
+        response = self.request_fetcher.get('/')
+        m = re.search(r'<a href="(/settings[^"]*)">', response.body)
+        continue_url = m.group(1)
+        settings_response = self.request_fetcher.get(continue_url)
+
+        self.assertRegexpMatches(settings_response.body,
+                                 r'name="markdown"\s+value="no"\s+checked')
+        self.assertRegexpMatches(settings_response.body,
+                                 r'name="private"\s+value="no"\s+checked')
+
+    def testNewUserInValidDomain(self):
+        self.login('newuser@example.com')
+        response = self.request_fetcher.get('/settings')
+        self.assertIn('<title>User settings', response.body)
+
+    def testNewUserInInvalidDomain(self):
+        """Test you can not register as a new user from a random domain."""
+        self.login('newuser@notallowed.com')
+        # TODO(csilvers): give a nice error page instead of a 500.
+        self.request_fetcher.get('/settings', status=500)
+
+    def testSettingsPageDoesNotCreateANewUser(self):
+        """Only *saving* the settings should create a new user."""
+        response = self.request_fetcher.get('/')
+        self.assertIn('<title>New user</title>', response.body)
+        m = re.search(r'<a href="(/settings[^"]*)">', response.body)
+        continue_url = m.group(1)
+        self.request_fetcher.get(continue_url)    # visit /settings
+
+        # Now if we go to / again, we should get the new-user page again
+        # because the settings were never saved.
+        response = self.request_fetcher.get('/')
+        self.assertIn('<title>New user</title>', response.body)
+
+
+class AppSettingsTestCase(UserTestBase):
+    """Test the app-settings page."""
+
+    def setUp(self):
+        super(AppSettingsTestCase, self).setUp()
+        self.set_is_admin()
+
+    def testDomainsParsing(self):
+        self.request_fetcher.get(
+            '/admin/update_settings?domains=a.com,b.com++c.com%0Bd.com,%0B')
+        app_settings = snippets._get_app_settings()
+        self.assertEqual(['a.com', 'b.com', 'c.com', 'd.com'],
+                         app_settings.domains)
 
 
 class UserSettingsTestCase(UserTestBase):
@@ -888,11 +1005,11 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertNumSnippets(response.body, 4)
         self.assertInSnippet('private@some_other_domain.com', response.body, 2)
         self.assertNotInSnippet('foreign', response.body, 2)
-        # We *should* see stuff from our domain, but in gray.
+        # We *should* see stuff from our domain, but marked private.
         self.assertInSnippet('private@example.com', response.body, 1)
         self.assertInSnippet('snippet-tag-private', response.body, 1)
         self.assertInSnippet('no see um', response.body, 1)
-        # And we should see public snippets, not in gray.
+        # And we should see public snippets, not marked private.
         self.assertInSnippet('public@example.com', response.body, 3)
         self.assertNotInSnippet('snippet-tag-private', response.body, 3)
         self.assertInSnippet('see me', response.body, 3)
@@ -924,6 +1041,12 @@ class PrivateSnippetTestCase(UserTestBase):
         self.assertInSnippet('not cautious', response.body, 0)
 
     def testDomainMatching(self):
+        # Let's make it legal for all these domains to log in.
+        app_settings = snippets._get_app_settings()
+        app_settings.domains = ['example.com', 'example.comm', 'example.co',
+                                'my-example.com', 'ample.com']
+        app_settings.put()
+
         self.login('close@example.comm')
         url = '/update_snippet?week=02-13-2012&snippet=whoa+comm&private=True'
         self.request_fetcher.get(url)
@@ -995,7 +1118,7 @@ class ManageUsersTestCase(UserTestBase):
 
         snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20, 12, 0, 3)
         self.login('has_no_snippets@example.com')
-        self.request_fetcher.get('/settings')
+        self.request_fetcher.get('/update_settings')
 
     def get_user_list(self, body):
         """Returns the email usernames of the user-list, in order."""
@@ -1128,7 +1251,7 @@ class SendingEmailTestCase(UserTestBase):
         self.request_fetcher.get('/update_snippet?week=01-30-2012&snippet=s4')
 
         self.login('has_no_snippets@example.com')
-        self.request_fetcher.get('/settings')
+        self.request_fetcher.get('/update_settings?reminder_email=yes')
 
         self.login('user@example.com')        # back to the normal user
 

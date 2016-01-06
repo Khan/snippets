@@ -1,0 +1,68 @@
+{%- block page_header -%}
+  {%- set title='Application settings' -%}
+  {% include "header.html" %}
+{%- endblock page_header -%}
+
+<h1>Manage Users</h1>
+
+<p><a class="navigation-link" href="/admin/manage_users">Delete or
+  hide users</a></p>
+
+
+<h1>Application settings</h1>
+
+<form action="/admin/update_settings" method="get" class="user-settings">
+
+<div class="user-settings-block">
+  <label class="user-settings-label" for="domains">
+    Domains to restrict new users to:
+  </label>
+  <textarea id="domains" class="user-settings-textarea" name="domains" rows="4" cols="60">{{settings.domains|join("\n")}}</textarea>
+  <div>
+    Only users with email addresses <code><b>@&lt;domain&gt;</b></code> can
+    register on this site.
+    (One per line.)
+  </div>
+</div>
+
+<fieldset class="user-settings-block">
+  <legend class="user-settings-label">
+    Should new users default to interpreting snippets as <a href="http://daringfireball.net/projects/markdown/syntax">markdown</a>?
+  </legend>
+  <input id="markdown-yes" type="radio" name="markdown" value="yes"
+         {% if settings.default_markdown %}checked{% endif %}>
+         <label for="markdown-yes">yes</label>
+  <input id="markdown-no" type="radio" name="markdown" value="no"
+         {% if not settings.default_markdown %}checked{% endif %}>
+         <label for="markdown-no">no</label>
+</fieldset>
+
+<fieldset class="user-settings-block">
+  <legend class="user-settings-label">Shnould new users default to
+  having snippets be private (only visible by people in their domain)?:</legend>
+  <input id="private-yes" type="radio" name="private" value="yes"
+         {% if settings.default_private %}checked{% endif %}>
+         <label for="private-yes">yes</label>
+  <input id="private-no" type="radio" name="private" value="no"
+         {% if not settings.default_private %}checked{% endif %}>
+         <label for="private-no">no</label>
+</fieldset>
+
+<fieldset class="user-settings-block">
+  <legend class="user-settings-label">Should new users default to
+  getting reeminder emails by default?:</legend>
+  <input id="reminder-email-yes" type="radio" name="reminder_email" value="yes"
+         {% if settings.default_email %}checked{% endif %}>
+         <label for="reminder-email-yes">yes</label>
+  <input id="reminder-email-no" type="radio" name="reminder_email" value="no"
+         {% if not settings.default_email %}checked{% endif %}>
+         <label for="reminder-email-no">no</label>
+</fieldset>
+
+<input type="hidden" name="redirect_to" value="{{redirect_to}}">
+
+<input class="button save-button" type="submit" value="Save">
+
+</form>
+
+{% include "footer.html" %}

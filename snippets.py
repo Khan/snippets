@@ -74,7 +74,25 @@ def _current_user_email():
     return users.get_current_user().email().lower()
 
 
-def _get_or_create_user(email):
+def _get_app_settings(create_if_missing=False, domains=None):
+    """Return the global app settings, or raise ValueError if none found.
+
+    If create_if_missing is true, we create app settings if none are found,
+    rather than raising a ValueError.  The app settings are initialized
+    with the given value for 'domains'.  The new entity is *not* put to
+    the datastore.
+    """
+    retval = models.AppSettings.get_by_key_name('global_settings')
+    if retval:
+        return retval
+    elif create_if_missing:
+        return models.AppSettings(key_name='global_settings',
+                                  created=_TODAY_FN(), domains=domains)
+    else:
+        raise ValueError("Need to set global application settings.")
+
+
+def _get_or_create_user(email, put_new_user=True):
     """Return the user object with the given email, creating if if needed.
 
     Considers the permissions scope of the currently logged in web user,
@@ -92,12 +110,36 @@ def _get_or_create_user(email):
             user.is_hidden = False
             user.put()
     elif not _logged_in_user_has_permission_for(email):
+        # TODO(csilvers): turn this into a 403 somewhere
         raise IndexError('User "%s" not found; did you specify'
                          ' the full email address?' % email)
     else:
-        user = models.User(email=email, created=_TODAY_FN())
-        db.put(user)
-        db.get(user.key())    # ensure db consistency for HRD
+        # You can only create a new user under one of the app-listed domains.
+        try:
+            app_settings = _get_app_settings()
+        except ValueError:
+            # TODO(csilvers): do this instead:
+            #                 /admin/settings?redirect_to=user_setting
+            return None
+
+        domain = email.split('@')[1]
+        allowed_domains = app_settings.domains
+        if domain not in allowed_domains:
+            # TODO(csilvers): turn this into a 403 somewhere
+            raise RuntimeError('Permission denied: '
+                               'This app is for users from %s.'
+                               ' But you are from %s.'
+                               % (' or '.join(allowed_domains), domain))
+
+        # Set the user defaults based on the global app defaults.
+        user = models.User(created=_TODAY_FN(),
+                           email=email,
+                           uses_markdown=app_settings.default_markdown,
+                           private_snippets=app_settings.default_private,
+                           wants_email=app_settings.default_email)
+        if put_new_user:
+            db.put(user)
+            db.get(user.key())    # ensure db consistency for HRD
     return user
 
 
@@ -158,6 +200,17 @@ class UserPage(BaseHandler):
         user = util.get_user(user_email)
 
         if not user:
+            # If there are no app settings, set those up before setting
+            # up the user settings.
+            if users.is_current_user_admin():
+                try:
+                    _get_app_settings()
+                except ValueError:
+                    self.redirect("/admin/settings?redirect_to=user_setting"
+                                  "&msg=Welcome+to+the+snippet+server!+"
+                                  "Please+take+a+moment+to+configure+it.")
+                    return
+
             template_values = {
                 'new_user': True,
                 'login_url': users.create_login_url(self.request.uri),
@@ -340,8 +393,8 @@ class UpdateSnippet(BaseHandler):
         if not _logged_in_user_has_permission_for(email):
             # TODO(marcos): present these messages to the ajax client
             self.response.set_status(403)
-            error = 'You do not have permissions to update user' \
-                ' snippets for %s' % email
+            error = ('You do not have permissions to update user'
+                     ' snippets for %s' % email)
             self.response.out.write('{"status": 403, '
                                     '"message": "%s"}' % error)
             return
@@ -377,7 +430,8 @@ class Settings(BaseHandler):
             # TODO(csilvers): return a 403 here instead.
             raise RuntimeError('You do not have permissions to view user'
                                ' settings for %s' % user_email)
-        user = _get_or_create_user(user_email)
+        # We won't put() the new user until the settings are saved.
+        user = _get_or_create_user(user_email, put_new_user=False)
 
         template_values = {
             'logout_url': users.create_logout_url('/'),
@@ -414,10 +468,12 @@ class UpdateSettings(BaseHandler):
         wants_email = self.request.get('reminder_email') == 'yes'
 
         # We want this list to be comma-separated, but people are
-        # likely to use both commas and newlines to separate.  Convert
-        # here.  Also get rid of whitespace, which cannot be in emails.
-        wants_to_view = self.request.get('to_view').replace('\n', ',')
-        wants_to_view = wants_to_view.replace(' ', '')
+        # likely to use whitespace to separate as well.  Convert here.
+        wants_to_view = self.request.get('to_view')
+        wants_to_view = re.sub(r'\s+', ',', wants_to_view)
+        wants_to_view = wants_to_view.split(',')
+        wants_to_view = [w for w in wants_to_view if w]   # deal with ',,'
+        wants_to_view = ','.join(wants_to_view)  # TODO(csilvers): keep as list
 
         # Changing their settings is the kind of activity that unhides
         # someone who was hidden, unless they specifically ask to be
@@ -439,6 +495,67 @@ class UpdateSettings(BaseHandler):
         else:
             self.redirect("/settings?msg=Changes+saved&u=%s"
                           % urllib.quote(user_email))
+
+
+class AppSettings(BaseHandler):
+    """Page to display settings for the whole app, for modification.
+
+    This page should be restricted to admin users via app.yaml.
+    """
+
+    def get(self):
+        my_domain = _current_user_email().split('@')[1]
+        app_settings = _get_app_settings(create_if_missing=True,
+                                         domains=[my_domain])
+
+        template_values = {
+            'logout_url': users.create_logout_url('/'),
+            'message': self.request.get('msg'),
+            'username': _current_user_email(),
+            'is_admin': users.is_current_user_admin(),
+            'view_week': util.existingsnippet_monday(_TODAY_FN()),
+            'redirect_to': self.request.get('redirect_to', ''),
+            'settings': app_settings,
+        }
+        self.render_response('app_settings.html', template_values)
+
+
+class UpdateAppSettings(BaseHandler):
+    """Updates the db with modifications from the App-Settings page.
+
+    This page should be restricted to admin users via app.yaml.
+    """
+
+    def get(self):
+        _get_or_create_user(_current_user_email())
+
+        domains = self.request.get('domains')
+        default_private = self.request.get('private') == 'yes'
+        default_markdown = self.request.get('markdown') == 'yes'
+        default_email = self.request.get('reminder_email') == 'yes'
+
+        # Turn domains into a list.  Allow whitespace or comma to separate.
+        domains = re.sub(r'\s+', ',', domains)
+        domains = [d for d in domains.split(',') if d]
+
+        @db.transactional
+        def update_settings():
+            app_settings = _get_app_settings(create_if_missing=True,
+                                             domains=domains)
+            app_settings.domains = domains
+            app_settings.default_private = default_private
+            app_settings.default_markdown = default_markdown
+            app_settings.default_email = default_email
+            app_settings.put()
+
+        update_settings()
+
+        redirect_to = self.request.get('redirect_to')
+        if redirect_to == 'user_setting':   # true for new_user.html
+            self.redirect('/settings?redirect_to=snippet_entry'
+                          '&msg=Now+enter+your+personal+user+settings.')
+        else:
+            self.redirect("/admin/settings?msg=Changes+saved")
 
 
 class ManageUsers(BaseHandler):
@@ -634,6 +751,8 @@ application = webapp2.WSGIApplication([
     ('/update_snippet', UpdateSnippet),
     ('/settings', Settings),
     ('/update_settings', UpdateSettings),
+    ('/admin/settings', AppSettings),
+    ('/admin/update_settings', UpdateAppSettings),
     ('/admin/manage_users', ManageUsers),
     ('/admin/send_friday_reminder_hipchat', SendFridayReminderHipChat),
     ('/admin/send_reminder_email', SendReminderEmail),

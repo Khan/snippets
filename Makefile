@@ -3,7 +3,7 @@
 serve:
 	dev_appserver.py --log_level=debug . --host=0.0.0.0
 
-test:
+test check:
 	python -m unittest discover -p '*_test.py'
 
 cfg-check:

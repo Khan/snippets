@@ -45,3 +45,13 @@ class Snippet(db.Model):
         m = hashlib.md5()
         m.update(self.email)
         return m.hexdigest()
+
+
+class AppSettings(db.Model):
+    """Application-wide preferences."""
+    created = db.DateTimeProperty()
+    last_modified = db.DateTimeProperty(auto_now=True)
+    domains = db.StringListProperty(required=True)
+    default_private = db.BooleanProperty(default=False)   # new-user default
+    default_markdown = db.BooleanProperty(default=True)   # new-user default
+    default_email = db.BooleanProperty(default=True)      # new-user default
