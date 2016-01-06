@@ -341,6 +341,10 @@ h1 {
 .user-settings-block {
     margin: 1em 0;
 }
+.user-settings-full-width-input {
+    display: block;
+    width: 100%;
+}
 
 
 /* Manage users */

@@ -63,7 +63,7 @@
 
 <div class="user-settings-block">
   <label class="user-settings-label" for="email_from">Email 'from' address:</label>
-  <input id="email_from" type="text" name="email_from" value="{{settings.email_from}}">
+  <input id="email_from" type="text" name="email_from" value="{{settings.email_from}}" class="user-settings-full-width-input">
   <p>If set, will send a weekly reminder email and "snippets ready!"
   email to all users.  The mail will appear to come from this email
   address.</p>
@@ -71,7 +71,7 @@
 
 <div class="user-settings-block">
   <label class="user-settings-label" for="hipchat_room">HipChat room:</label>
-  <input id="hipchat_room" type="text" name="hipchat_room" value="{{settings.hipchat_room}}">
+  <input id="hipchat_room" type="text" name="hipchat_room" value="{{settings.hipchat_room}}" class="user-settings-full-width-input">
   <p>If set, will send a weekly reminder message and "snippets ready!"
   message to the specified room in HipChat.  If not set, will not send
   to HipChat.</p>
@@ -79,14 +79,14 @@
 
 <div class="user-settings-block">
   <label class="user-settings-label" for="hipchat_token">HipChat token:</label>
-  <input id="hipchat_token" type="text" name="hipchat_token" value="{{settings.hipchat_token}}">
+  <input id="hipchat_token" type="text" name="hipchat_token" value="{{settings.hipchat_token}}" class="user-settings-full-width-input">
   <p>Needed to send messages via HipChat.  You can get a token
   from <a href="https://www.hipchat.com/admin/api">hipchat</a>.</p>
 </div>
 
 <div class="user-settings-block">
   <label class="user-settings-label" for="slack_channel">Slack channel:</label>
-  <input id="slack_channel" type="text" name="slack_channel" value="{{settings.slack_channel}}">
+  <input id="slack_channel" type="text" name="slack_channel" value="{{settings.slack_channel}}" class="user-settings-full-width-input">
   <p>If set, will send a weekly reminder message and "snippets ready!"
   message to the specified channel in Slack.  If not set, will not send
   to Slack.  Include the leading <code>#</code>.</p>
@@ -94,7 +94,7 @@
 
 <div class="user-settings-block">
   <label class="user-settings-label" for="slack_token">Slack bot token:</label>
-  <input id="slack_token" type="text" name="slack_token" value="{{settings.slack_token}}">
+  <input id="slack_token" type="text" name="slack_token" value="{{settings.slack_token}}" class="user-settings-full-width-input">
   <p>Needed to send messages via
   Slack.  <a href="https://api.slack.com/bot-users">instructions for
   getting a Slack bot token</a>.</p>
@@ -102,7 +102,7 @@
 
 <div class="user-settings-block">
   <label class="user-settings-label" for="slack_slash_token">Slack slash token:</label>
-  <input id="slack_slash_token" type="text" name="slack_slash_token" value="{{settings.slack_slash_token}}">
+  <input id="slack_slash_token" type="text" name="slack_slash_token" value="{{settings.slack_slash_token}}" class="user-settings-full-width-input">
   <p>If non-empty, enable slash-commands to work in Slack, to interact
   with snippets from within Slack.  Slack slash-commands can be
   enabled/disabled independently from Slack messaging.  See the bottom
