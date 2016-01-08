@@ -3,7 +3,8 @@ from __future__ import unicode_literals
 
 """Snippets server -> Slack integration.
 
-At Khan Academy we use Slack for messaging!  This provides Slack
+This provides HipChat integration with the snippet server, for
+organizations that use Slack for messaging.  This provides Slack
 integration with the snippet server, as well prototype CLI style
 interaction with snippets via the Slack "slash commands" integration.
 

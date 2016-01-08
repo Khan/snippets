@@ -1,9 +1,9 @@
 """Snippets server.
 
-This server runs the Khan Academy weekly snippets.  Users can
-add a summary of what they did in the last week, and browse
-other people's snippets.  They will also get weekly mail with
-everyone's snippets in them.
+The main server code for Weekly Snippets.  Users can add a summary of
+what they did in the last week, and browse other people's snippets.
+They will also get weekly mail pointing to a webpage with everyone's
+snippets in them.
 """
 
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'

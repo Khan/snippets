@@ -1,7 +1,7 @@
 """Snippets server -> HipChat integration.
 
-At Khan Academy we use HipChat for messaging.  This provides HipChat
-integration with the snippet server.
+This provides HipChat integration with the snippet server, for
+organizations that use HipChat for messaging.
 
 Talking to the HipChat 'rooms' requires a token.  The admin must enter
 the value of this token on /admin/settings.  There are instructions
