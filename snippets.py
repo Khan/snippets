@@ -405,6 +405,11 @@ class Settings(BaseHandler):
                                ' settings for %s' % user_email)
         # We won't put() the new user until the settings are saved.
         user = _get_or_create_user(user_email, put_new_user=False)
+        try:
+            user.key()
+            is_new_user = False
+        except db.NotSavedError:
+            is_new_user = True
 
         template_values = {
             'logout_url': users.create_logout_url('/'),
@@ -413,6 +418,7 @@ class Settings(BaseHandler):
             'is_admin': users.is_current_user_admin(),
             'view_week': util.existingsnippet_monday(_TODAY_FN()),
             'user': user,
+            'is_new_user': is_new_user,
             'redirect_to': self.request.get('redirect_to', ''),
             # We could get this from user, but we want to replace
             # commas with newlines for printing.
@@ -434,6 +440,21 @@ class UpdateSettings(BaseHandler):
             raise RuntimeError('You do not have permissions to modify user'
                                ' settings for %s' % user_email)
         user = _get_or_create_user(user_email)
+
+        # First, check if the user clicked on 'delete' or 'hide'
+        # rather than 'save'.
+        if self.request.get('hide'):
+            user.is_hidden = True
+            user.put()
+            time.sleep(0.1)   # some time for eventual consistency
+            self.redirect('/weekly?msg=You+are+now+hidden.+Have+a+nice+day!')
+            return
+        elif self.request.get('delete'):
+            db.delete(user)
+            self.redirect('/weekly?msg=Your+account+has+been+deleted.+'
+                          '(Note+your+existing+snippets+have+NOT+been+'
+                          'deleted.)+Have+a+nice+day!')
+            return
 
         category = self.request.get('category')
         uses_markdown = self.request.get('markdown') == 'yes'

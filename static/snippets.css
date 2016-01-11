@@ -222,6 +222,28 @@ h1 {
     background-color: #568522;
     border-color: #568522;
 }
+.hide-button:not(:disabled) {
+    /* Yellow button background */
+    background-color: #f0ad4e;
+    border-color: #eea236;
+    color: #fff;
+}
+.hide-button:not(:disabled):hover {
+    /* Darker yellow button background on hover */
+    background-color: #ec971f;
+    border-color: #d58512;
+}
+.delete-button:not(:disabled) {
+    /* Red button background */
+    background-color: #d9534f;
+    border-color: #d43f3a;
+    color: #fff;
+}
+.delete-button:not(:disabled):hover {
+    /* Darker red button background on hover */
+    background-color: #c9302c;
+    border-color: #ac2925;
+}
 .snippet-setting {
     color: #888;
     margin-bottom: 4px;

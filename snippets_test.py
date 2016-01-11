@@ -445,7 +445,7 @@ class AppSettingsTestCase(UserTestBase):
 
 
 class UserSettingsTestCase(UserTestBase):
-    """Test that user settings flow through to snippets page appropriately."""
+    """Test setting and using user settings."""
 
     def assertInputIsChecked(self, name, body, snippet_number):
         self.assertRegexpMatches(body, r'name="%s" value="True"\s+checked\s*>'
@@ -604,6 +604,38 @@ class UserSettingsTestCase(UserTestBase):
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/weekly?week=02-27-2012')
         self.assertNumSnippets(response.body, 1)
+
+    def testHideButton(self):
+        # First, register the user.
+        url = '/update_settings?u=user@example.com'
+        self.request_fetcher.get(url)
+
+        url = '/update_snippet?week=02-13-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+
+        # Now hide using the hide button.
+        url = '/update_settings?u=user@example.com&hide=Hide'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 0)
+
+    def testDeleteButton(self):
+        # First, register the user.
+        url = '/update_settings?category=dummy'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/')
+        self.assertNotIn('<title>New user</title>', response.body)
+
+        url = '/update_settings?u=user@example.com&delete=Delete'
+        self.request_fetcher.get(url)
+
+        response = self.request_fetcher.get('/')
+        self.assertIn('<title>New user</title>', response.body)
 
 
 class SetAndViewSnippetsTestCase(UserTestBase):

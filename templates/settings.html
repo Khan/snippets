@@ -68,7 +68,32 @@
 
 <input type="hidden" name="redirect_to" value="{{redirect_to}}">
 
-<input class="button save-button" type="submit" value="Save">
+<input class="button save-button" type="submit" name="save" value="Save">
+
+{# It doesn't make sense for a not-yet-created user to delete themselves #}
+{% if not is_new_user %}
+<hr>
+
+<h1>Delete! Delete!</h1>
+
+<p>You can delete your account if you no longer want to be part of the
+  snippet system.  You can also hide your account if you want to take
+  a break from snippets.</p>
+
+<p><b>IMPORTANT NOTE:</b> deleting your account does <i>not</i> delete
+  your historical snippets -- they are still visible.  All it does is
+  make it so no snippets show up for you in future weeks.  You also no
+  longer get reminder emails.</p>
+
+<p>Hiding is similar to deleting, except that your account is
+  automatically re-created, with its settings intact, the next time
+  you enter a snippet.  It is appropriate if you want to take an
+  extended break from snippets -- for instance for a sabbatical year
+  -- but may come back to them later.</p>
+
+<input class="button hide-button" type="submit" name="hide" value="Hide">
+<input class="button delete-button" type="submit" name="delete" value="Delete">
+{% endif %}
 
 </form>
 
