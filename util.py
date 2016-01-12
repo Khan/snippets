@@ -27,6 +27,14 @@ def snippets_for_user(user_email):
     return snippets_q.fetch(1000)       # good for many years...
 
 
+def most_recent_snippet_for_user(user_email):
+    """Return the most recent snippet for a given user, or None."""
+    snippets_q = Snippet.all()
+    snippets_q.filter('email = ', user_email)
+    snippets_q.order('-week')            # this puts newest snippet first
+    return snippets_q.get()
+
+
 # Functions around filling in snippets
 def newsnippet_monday(today):
     """Return a datetime.date object: the monday for new snippets.

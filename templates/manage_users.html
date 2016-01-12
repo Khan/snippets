@@ -39,7 +39,7 @@
     {% if created %}{{ created|iso_date }}{% else %}(unknown){% endif %}
   </td>
   <td>
-    {% if weeks_since_snippet != None %}{{ weeks_since_snippet }} weeks ago{% else %}--{% endif %}
+    {% if weeks_since_snippet == 1 %}1 week ago{% elif weeks_since_snippet != None %}{{ weeks_since_snippet }} weeks ago{% else %}--{% endif %}
   </td>
 </tr>
 {% endfor %}

@@ -609,10 +609,10 @@ class ManageUsers(BaseHandler):
         user_data = []
         for user in results:
             # Get the last snippet for that user.
-            snippets = util.snippets_for_user(user.email)
-            if snippets:
+            last_snippet = util.most_recent_snippet_for_user(user.email)
+            if last_snippet:
                 seconds_since_snippet = (
-                    (_TODAY_FN().date() - snippets[-1].week).total_seconds())
+                    (_TODAY_FN().date() - last_snippet.week).total_seconds())
                 weeks_since_snippet = int(
                     seconds_since_snippet /
                     datetime.timedelta(days=7).total_seconds())
