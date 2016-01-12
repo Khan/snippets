@@ -26,9 +26,6 @@ import models
 import slacklib
 import util
 
-# the URL to use for notifications directing people to this site
-_URL = 'https://weekly-snippets.appspot.com'
-
 
 # This allows mocking in a different day, for testing.
 _TODAY_FN = datetime.datetime.now
@@ -134,13 +131,15 @@ def _can_view_private_snippets(my_email, snippet_email):
     return my_email[my_at:] == snippet_email[snippet_at:]
 
 
-def _send_to_chat(msg):
+def _send_to_chat(msg, url_path):
     """Send a message to the main room/channel for active chat integrations."""
     try:
         app_settings = models.AppSettings.get()
     except ValueError:
         logging.warning('Not sending to chat: app settings not configured')
         return
+
+    msg = "%s %s%s" % (msg, app_settings.hostname, url_path)
 
     hipchat_room = app_settings.hipchat_room
     if hipchat_room:
@@ -699,6 +698,8 @@ def _maybe_send_snippets_mail(to, subject, template_path, template_values):
     if not app_settings.email_from:
         return
 
+    template_values.setdefault('hostname', app_settings.hostname)
+
     jinja2_instance = jinja2.get_jinja2()
     mail.send_mail(sender=app_settings.email_from,
                    to=to,
@@ -716,8 +717,8 @@ class SendFridayReminderChat(BaseHandler):
     """Send a chat message to the configured chat room(s)."""
 
     def get(self):
-        msg = 'Reminder: Weekly snippets due Monday at 5pm. ' + _URL
-        _send_to_chat(msg)
+        msg = 'Reminder: Weekly snippets due Monday at 5pm.'
+        _send_to_chat(msg, "/")
 
 
 class SendReminderEmail(BaseHandler):
@@ -738,8 +739,8 @@ class SendReminderEmail(BaseHandler):
                 logging.debug('did not send reminder email to %s: '
                               'has a snippet already' % user_email)
 
-        msg = 'Reminder: Weekly snippets due today at 5pm. ' + _URL
-        _send_to_chat(msg)
+        msg = 'Reminder: Weekly snippets due today at 5pm.'
+        _send_to_chat(msg, "/")
 
 
 class SendViewEmail(BaseHandler):
@@ -756,8 +757,8 @@ class SendViewEmail(BaseHandler):
             self._send_mail(user_email, has_snippet)
             logging.debug('sent "view" email to %s' % user_email)
 
-        msg = 'Weekly snippets are ready! ' + _URL + '/weekly'
-        _send_to_chat(msg)
+        msg = 'Weekly snippets are ready!'
+        _send_to_chat(msg, "/weekly")
 
 
 application = webapp2.WSGIApplication([

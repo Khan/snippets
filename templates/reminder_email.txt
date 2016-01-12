@@ -1,10 +1,10 @@
 Just a reminder that weekly snippets are due at 5pm today!  Our
 records show you have not yet entered snippet information for last
 week.  To do so, visit
-   http://weekly-snippets.appspot.com/
+   {{hostname}}
 
 If you'd like to stop getting these reminder emails, visit
-   http://weekly-snippets.appspot.com/settings
+   {{hostname}}/settings
 and click 'no' under 'Receive reminder emails'.
 
 Regards,

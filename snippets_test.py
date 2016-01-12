@@ -75,10 +75,12 @@ class SnippetsTestBase(unittest.TestCase):
         self.testbed.setup_env(user_id=email, overwrite=True)
         self.testbed.setup_env(user_is_admin='0', overwrite=True)
         # Now make sure there are global settings.
-        models.AppSettings.get(
+        settings = models.AppSettings.get(
             create_if_missing=True,
-            domains=['example.com', 'some_other_domain.com']
-        ).put()
+            domains=['example.com', 'some_other_domain.com'],
+        )
+        settings.hostname = 'https://example.com'
+        settings.put()
 
     def set_is_admin(self):
         self.testbed.setup_env(user_is_admin='1', overwrite=True)
@@ -1347,6 +1349,8 @@ class SendingEmailTestCase(UserTestBase):
         self.assertEqual('has_no_snippets@example.com', r[0].to)
         self.assertIn('Snippet Server', r[0].sender)
         self.assertEqual('Weekly snippets due today at 5pm', r[0].subject)
+        self.assertEmailContains('has_no_snippets@example.com',
+                                 'https://example.com')
 
     def testSendViewEmail(self):
         self.request_fetcher.get('/admin/send_view_email')
@@ -1363,6 +1367,8 @@ class SendingEmailTestCase(UserTestBase):
                                  'not too late')
         self.assertEmailContains('has_no_snippets@example.com',
                                  'not too late')
+        self.assertEmailContains('does_not_have_snippet@example.com',
+                                 'https://example.com')
 
     def testViewReminderMailsSettingAndSendReminderEmail(self):
         """Tests the user config-setting for getting emails."""
@@ -1445,10 +1451,12 @@ class SendingChatTestCase(UserTestBase):
         self.assertEqual(1, len(self.hipchat_sends))
         self.assertEqual('hipchat r00m', self.hipchat_sends[0][0])
         self.assertIn('Weekly snippets due', self.hipchat_sends[0][1])
+        self.assertIn('https://example.com', self.hipchat_sends[0][1])
 
         self.assertEqual(1, len(self.slack_sends))
         self.assertEqual('#slack_chann3l', self.slack_sends[0][0])
         self.assertIn('Weekly snippets due', self.slack_sends[0][1])
+        self.assertIn('https://example.com', self.slack_sends[0][1])
 
     def test_disable_hipchat(self):
         app_settings = models.AppSettings.get()

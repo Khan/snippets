@@ -1,5 +1,6 @@
 import datetime
 import hashlib
+import os
 
 from google.appengine.ext import db
 from google.appengine.api import users
@@ -57,6 +58,7 @@ class AppSettings(db.Model):
     last_modified = db.DateTimeProperty(auto_now=True)
     # Application settings
     domains = db.StringListProperty(required=True)
+    hostname = db.StringProperty(required=True)           # used for emails
     default_private = db.BooleanProperty(default=False)   # new-user default
     default_markdown = db.BooleanProperty(default=True)   # new-user default
     default_email = db.BooleanProperty(default=True)      # new-user default
@@ -87,9 +89,14 @@ class AppSettings(db.Model):
             email_address = users.get_current_user().email()
             email_address = email_address.replace('@', '+snippets@')
             email_address = 'Snippet Server <%s>' % email_address
+            # We also default to server hostname being the hostname that
+            # you accessed the site on here.
+            hostname = '%s://%s' % (os.environ.get('wsgi.url_scheme', 'http'),
+                                    os.environ['HTTP_HOST'])
             return AppSettings(key_name='global_settings',
                                created=datetime.datetime.now(),
                                domains=domains,
+                               hostname=hostname,
                                email_from=email_address)
         else:
             raise ValueError("Need to set global application settings.")
