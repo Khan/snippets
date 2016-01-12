@@ -3,7 +3,7 @@
 $(function() {
     // Function to attach to each 'hide' button that toggles the hide state.
     function toggleHide(event) {
-        var $inputButton = event.toElement || event.target;
+        var $inputButton = event.target;
         var email = $($inputButton).attr("data-email");
         if ($inputButton.value === "Hide") {
             $inputButton.value = "Hiding...";
@@ -33,7 +33,7 @@ $(function() {
     }
 
     function doDelete(event) {
-        var $inputButton = event.toElement || event.target;
+        var $inputButton = event.target;
         var email = $($inputButton).attr("data-email");
         $inputButton.value = "Deleting...";
         $inputButton.disabled = true;
