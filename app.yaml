@@ -24,6 +24,7 @@ handlers:
 skip_files:
 - .git
 - .DS_Store
+- .*.pyc
 
 builtins:
 - remote_api: on
