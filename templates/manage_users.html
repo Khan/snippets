@@ -26,11 +26,11 @@
 <tr>
   <td>
     {% if hidden %}
-        <input class="button" type="submit" name="unhide {{email}}" value="Unhide">
+        <input class="button hide-account-button" type="button" data-email="{{email}}" name="unhide {{email}}" value="Unhide">
     {% else %}
-        <input class="button" type="submit" name="hide {{email}}" value="Hide">
+        <input class="button hide-account-button" type="button" data-email="{{email}}" name="hide {{email}}" value="Hide">
     {% endif %}
-    <input class="button" type="submit" name="delete {{email}}" value="Delete">
+    <input class="button delete-account-button" type="button" data-email="{{email}}" name="delete {{email}}" value="Delete">
   </td>
   <td>
     {{ email }}
@@ -46,5 +46,8 @@
 </tbody>
 </table>
 </form>
+
+<script src="//cdnjs.cloudflare.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<script src="/static/manage_users.js?v1"></script>
 
 {% include "footer.html" %}
