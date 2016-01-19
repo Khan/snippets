@@ -7,4 +7,4 @@ test check:
 	python -m unittest discover -p '*_test.py'
 
 appcfg-update deploy:
-	appcfg.py --oauth2 update .
+	appcfg.py -A "${APP}" update .
