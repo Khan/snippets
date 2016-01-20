@@ -4,10 +4,11 @@ Snippet Server
 This server supports writing and reading weekly snippets -- status
 updates -- for a group of people.
 
-Every company I've worked at, one of the first things I did was write
-a small server to manage snippets.  (The one at Google eventually
-became a big server.)  Now I'm open sourcing one so I won't have to
-write it again!
+When I joined Khan Academy, my first project was to write a version of
+the weekly-snippet server I had worked with [at
+Google](http://blog.idonethis.com/google-snippets-internal-tool/).
+Years later, with the help of many other intrepid Khan Academy
+employees, it's ready for the world!
 
 While there are [many](https://weekdone.com/)
 [snippet](https://www.workingon.co/)
