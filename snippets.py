@@ -68,6 +68,7 @@ def _get_or_create_user(email, put_new_user=True):
         if user.is_hidden:
             # Any access that causes _get_or_create_user() is an access
             # that indicates the user is active again, so un-hide them.
+            # TODO(csilvers): move this get/update/put atomic into a txn
             user.is_hidden = False
             user.put()
     elif not _logged_in_user_has_permission_for(email):
@@ -320,6 +321,8 @@ class UpdateSnippet(BaseHandler):
         private = self.request.get('private') == 'True'
         is_markdown = self.request.get('is_markdown') == 'True'
 
+        # TODO(csilvers): make this get-update-put atomic.
+        # (maybe make the snippet id be email + week).
         q = models.Snippet.all()
         q.filter('email = ', email)
         q.filter('week = ', week)
@@ -438,6 +441,7 @@ class UpdateSettings(BaseHandler):
             # TODO(csilvers): return a 403 here instead.
             raise RuntimeError('You do not have permissions to modify user'
                                ' settings for %s' % user_email)
+        # TODO(csilvers): make this get/update/put atomic (put in a txn)
         user = _get_or_create_user(user_email)
 
         # First, check if the user clicked on 'delete' or 'hide'
@@ -576,6 +580,7 @@ class ManageUsers(BaseHandler):
         for (name, value) in self.request.params.iteritems():
             if name.startswith('hide '):
                 email_of_user_to_hide = name[len('hide '):]
+                # TODO(csilvers): move this get/update/put atomic into a txn
                 user = util.get_user_or_die(email_of_user_to_hide)
                 user.is_hidden = True
                 user.put()
@@ -585,6 +590,7 @@ class ManageUsers(BaseHandler):
                 return
             if name.startswith('unhide '):
                 email_of_user_to_unhide = name[len('unhide '):]
+                # TODO(csilvers): move this get/update/put atomic into a txn
                 user = util.get_user_or_die(email_of_user_to_unhide)
                 user.is_hidden = False
                 user.put()

@@ -286,6 +286,7 @@ def command_add(user_email, new_item):
             "Usage: `/snippets add [item]`"
         )
 
+    # TODO(csilvers): move this get/update/put atomic into a txn
     try:
         snippet = _user_snippet(user_email)      # may raise ValueError
         items = _snippet_items(snippet)          # may raise SyntaxError
@@ -328,6 +329,7 @@ def command_del(user_email, args):
     except ValueError:
         return syntax_err_msg
 
+    # TODO(csilvers): move this get/update/put atomic into a txn
     try:
         snippet = _user_snippet(user_email)      # may raise ValueError
         items = _snippet_items(snippet)          # may raise SyntaxError
