@@ -1,5 +1,5 @@
 The weekly snippets for last week have been posted.  To see them, visit
-   {{hostname}}
+   {{hostname}}/weekly
 {% if not has_snippets %}
 It's not too late to enter in snippets for last week if you haven't
 already!  To do so, visit
