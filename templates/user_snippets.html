@@ -83,4 +83,14 @@
 <script src="//cdnjs.cloudflare.com/ajax/libs/marked/0.3.2/marked.min.js"></script>
 <script src="/static/snippets.js?v3"></script>
 
+<script>
+      // Converts snippets to markdown for other users (that is,
+      // users who are not you, who you can't edit).
+      marked.setOptions({sanitize: true});
+      $(".snippet-text-markdown").each(function(i, v) {
+         v.innerHTML = window.marked(v.innerHTML);
+      });
+</script>
+
+
 {% include "footer.html" %}
