@@ -1,0 +1,23 @@
+sudo: false
+language: python
+
+cache:
+  directories:
+    - "$HOME/google-cloud-sdk/"
+
+env:
+  global:
+    - PATH=$PATH:${HOME}/google-cloud-sdk/bin
+    - GAE_PYTHONPATH=${HOME}/google-cloud-sdk/platform/google_appengine
+    - PYTHONPATH=${PYTHONPATH}:${GAE_PYTHONPATH}
+    - CLOUDSDK_CORE_DISABLE_PROMPTS=1
+
+install:
+  - if [ ! -d ${HOME}/google-cloud-sdk/bin ]; then
+      rm -rf ${HOME}/google-cloud-sdk;
+      curl -s https://sdk.cloud.google.com | bash;
+    fi
+  - gcloud components update app-engine-python
+
+script:
+  - make test
