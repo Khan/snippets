@@ -107,7 +107,7 @@
 </div>
 
 <div class="user-settings-block">
-  <label class="user-settings-label" for="slack_slash_token">Slack slash token:</label>
+  <label class="user-settings-label" for="slack_slash_token">Slack verificaiton token:</label>
   <input id="slack_slash_token" type="text" name="slack_slash_token" value="{{settings.slack_slash_token}}" class="user-settings-full-width-input">
   <p>If non-empty, enable slash-commands to work in Slack, to interact
   with snippets from within Slack.  Slack slash-commands can be
@@ -119,6 +119,10 @@
   <blockquote><pre>
 {{slack_slash_commands}}
   </pre></blockquote>
+  <p>
+   You will need to give the app "commands" permission scope and specify
+   https://mycomany-snippets.appspot.com/slack as the endpoint for /snippets
+  </p>
 </div>
 
 <input type="hidden" name="redirect_to" value="{{redirect_to}}">
