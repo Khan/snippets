@@ -7,4 +7,4 @@ test check:
 	python -m unittest discover -p '*_test.py'
 
 appcfg-update deploy:
-	gcloud app deploy
+	gcloud app deploy --project "${APP}"

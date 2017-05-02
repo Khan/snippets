@@ -161,12 +161,10 @@ https://console.developers.google.com: click on "Select a project..."
 in the top navbar and then "Create a project."
 
 You will then need a name for your AppEngine project.  Let's suppose
-you call it `mycompany-snippets`. You must then set the project by 
-running `gcloud config set project mycompany-snippets` from the snippets
-directory. You can then deploy with
+you call it `mycompany-snippets`, you can then deploy with
 
 ```
-make deploy
+make deploy APP=mycompany-snippets
 ```
 
 Your app will then be available at `mycompany-snippets.appspot.com`.
@@ -179,6 +177,7 @@ You may also need to manually trigger an index build for datastore
 ```
 gcloud datastore create-indexes index.yaml
 ```
+(try this if you're seeing 500 errors)
 
 
 Adding administrators
