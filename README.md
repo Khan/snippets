@@ -161,19 +161,23 @@ https://console.developers.google.com: click on "Select a project..."
 in the top navbar and then "Create a project."
 
 You will then need a name for your AppEngine project.  Let's suppose
-you call it `mycompany-snippets`.
+you call it `mycompany-snippets`, you can then deploy with
 
-After you have those pre-requisites, you can deploy this script in
-two easy steps:
 ```
-    git clone git@github.com/Khan/snippets
-    cd snippets && make deploy APP=mycompany-snippets
+make deploy APP=mycompany-snippets
 ```
 
 Your app will then be available at `mycompany-snippets.appspot.com`.
 
-If you get an error like 'appcfg.py: not found', it means you need to
+If you get an error like 'gcloud: not found', it means you need to
 add the appengine-SDK location to your `$PATH`.
+
+You may also need to manually trigger an index build for datastore
+
+```
+gcloud datastore create-indexes index.yaml
+```
+(try this if you're seeing 500 errors)
 
 
 Adding administrators
