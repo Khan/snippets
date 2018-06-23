@@ -251,12 +251,14 @@ class SummaryPage(BaseHandler):
         user_q = models.User.all()
         results = user_q.fetch(1000)
         email_to_category = {}
+        email_to_user = {}
         hidden_users = set()      # emails of users with the 'hidden' property
         for result in results:
             # People aren't very good about capitalizing their
             # categories consistently, so we enforce title-case,
             # with exceptions for 'and'.
             email_to_category[result.email] = _title_case(result.category)
+            email_to_user[result.email] = result
             if result.is_hidden:
                 hidden_users.add(result.email)
 
@@ -274,7 +276,9 @@ class SummaryPage(BaseHandler):
             category = email_to_category.get(
                 snippet.email, models.NULL_CATEGORY
             )
-            snippets_by_category.setdefault(category, []).append(snippet)
+            snippets_by_category.setdefault(category, []).append(
+                (snippet, email_to_user[snippet.email])
+            )
             if snippet.email in email_to_category:
                 del email_to_category[snippet.email]
 
@@ -285,14 +289,16 @@ class SummaryPage(BaseHandler):
         for (email, category) in email_to_category.iteritems():
             if email not in hidden_users:
                 snippet = models.Snippet(email=email, week=week)
-                snippets_by_category.setdefault(category, []).append(snippet)
+                snippets_by_category.setdefault(category, []).append(
+                    (snippet, email_to_user[snippet.email])
+                )
 
         # Now get a sorted list, categories in alphabetical order and
         # each snippet-author within the category in alphabetical
-        # order.  The data structure is ((category, (snippet, ...)), ...)
+        # order.  The data structure is ((category, ((snippet, email), ...)), ...)
         categories_and_snippets = []
         for (category, snippets) in snippets_by_category.iteritems():
-            snippets.sort(key=lambda snippet: snippet.email)
+            snippets.sort(key=lambda (snippet, user): snippet.email)
             categories_and_snippets.append((category, snippets))
         categories_and_snippets.sort()
 
@@ -459,6 +465,7 @@ class UpdateSettings(BaseHandler):
                           'deleted.)+Have+a+nice+day!')
             return
 
+        display_name = self.request.get('display_name')
         category = self.request.get('category')
         uses_markdown = self.request.get('markdown') == 'yes'
         private_snippets = self.request.get('private') == 'yes'
@@ -478,6 +485,7 @@ class UpdateSettings(BaseHandler):
         is_hidden = self.request.get('is_hidden', 'no') == 'yes'
 
         user.is_hidden = is_hidden
+        user.display_name = display_name
         user.category = category or models.NULL_CATEGORY
         user.uses_markdown = uses_markdown
         user.private_snippets = private_snippets

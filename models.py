@@ -33,6 +33,7 @@ class User(db.Model):
     wants_email = db.BooleanProperty(default=True)     # get nag emails?
     # TODO(csilvers): make a ListProperty instead.
     wants_to_view = db.TextProperty(default='all')     # comma-separated list
+    display_name = db.TextProperty(default='')         #  display name of the user
 
 
 class Snippet(db.Model):
