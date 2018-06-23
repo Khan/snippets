@@ -14,10 +14,14 @@
   <div class="snippet-category">
     <h2> {{category_and_snippets.0}} </h2>
 
-    {% for snippet in category_and_snippets.1 %}
+    {% for (snippet, user) in category_and_snippets.1 %}
       <div class="snippet-section unique-snippet">
         <img class="snippet-avatar" src="http://www.gravatar.com/avatar/{{snippet.email_md5_hash}}?s=50&d=retro">
-        <h3>{{snippet.email}}:</h3>
+        {% if user.display_name %}
+          <h3>{{user.display_name}}:</h3>
+        {% else %}
+          <h3>{{user.email}}:</h3>
+        {% endif %}
         {% if snippet.private %}<span class="snippet-tag snippet-tag-private">Private</span>{% endif %}
         {% if not snippet.text %}<span class="snippet-tag snippet-tag-none">No snippet</span>{% endif %}
         {% if snippet.text %}
