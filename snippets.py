@@ -252,21 +252,18 @@ class SummaryPage(BaseHandler):
         results = user_q.fetch(1000)
         email_to_category = {}
         email_to_user = {}
-        hidden_users = set()      # emails of users with the 'hidden' property
         for result in results:
             # People aren't very good about capitalizing their
             # categories consistently, so we enforce title-case,
             # with exceptions for 'and'.
             email_to_category[result.email] = _title_case(result.category)
             email_to_user[result.email] = result
-            if result.is_hidden:
-                hidden_users.add(result.email)
 
-        # Collect the snippets by category.  As we see each email,
+        # Collect the snippets and users by category.  As we see each email,
         # delete it from email_to_category.  At the end of this,
         # email_to_category will hold people who did not give
         # snippets this week.
-        snippets_by_category = {}
+        snippets_and_users_by_category = {}
         for snippet in snippets:
             # Ignore this snippet if we don't have permission to view it.
             if (snippet.private and
@@ -276,7 +273,7 @@ class SummaryPage(BaseHandler):
             category = email_to_category.get(
                 snippet.email, models.NULL_CATEGORY
             )
-            snippets_by_category.setdefault(category, []).append(
+            snippets_and_users_by_category.setdefault(category, []).append(
                 (snippet, email_to_user[snippet.email])
             )
             if snippet.email in email_to_category:
@@ -287,9 +284,9 @@ class SummaryPage(BaseHandler):
         # means: pretend they don't exist until they have a non-empty
         # snippet again.)
         for (email, category) in email_to_category.iteritems():
-            if email not in hidden_users:
+            if not email_to_user[email].is_hidden:
                 snippet = models.Snippet(email=email, week=week)
-                snippets_by_category.setdefault(category, []).append(
+                snippets_and_users_by_category.setdefault(category, []).append(
                     (snippet, email_to_user[snippet.email])
                 )
 
@@ -297,9 +294,9 @@ class SummaryPage(BaseHandler):
         # each snippet-author within the category in alphabetical
         # order.  The data structure is ((category, ((snippet, user), ...)), ...)
         categories_and_snippets = []
-        for (category, snippets) in snippets_by_category.iteritems():
-            snippets.sort(key=lambda (snippet, user): snippet.email)
-            categories_and_snippets.append((category, snippets))
+        for (category, snippets_and_users) in snippets_and_users_by_category.iteritems():
+            snippets_and_users.sort(key=lambda (snippet, user): snippet.email)
+            categories_and_snippets.append((category, snippets_and_users))
         categories_and_snippets.sort()
 
         template_values = {
