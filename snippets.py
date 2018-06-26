@@ -298,9 +298,11 @@ class SummaryPage(BaseHandler):
 
         # Now get a sorted list, categories in alphabetical order and
         # each snippet-author within the category in alphabetical
-        # order.  The data structure is ((category, ((snippet, user), ...)), ...)
+        # order.
+        # The data structure is ((category, ((snippet, user), ...)), ...)
         categories_and_snippets = []
-        for (category, snippets_and_users) in snippets_and_users_by_category.iteritems():
+        for (category,
+             snippets_and_users) in snippets_and_users_by_category.iteritems():
             snippets_and_users.sort(key=lambda (snippet, user): snippet.email)
             categories_and_snippets.append((category, snippets_and_users))
         categories_and_snippets.sort()
@@ -341,6 +343,8 @@ class UpdateSnippet(BaseHandler):
         # that email as well, if it doesn't already exist.
         user = _get_or_create_user(email)
 
+        # Store user's display_name in snippet so that if a user is later
+        # deleted, we could still show his / her display_name.
         if snippet:
             snippet.text = text   # just update the snippet text
             snippet.display_name = user.display_name
