@@ -561,7 +561,7 @@ class UserSettingsTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
         response = self.request_fetcher.get('/')
-        self.assertNumSnippets(response.body, 1)
+        self.assertNumSnippets(response.body, 2)
         response = self.request_fetcher.get('/weekly?week=02-27-2012')
         self.assertNumSnippets(response.body, 1)    # "no snippet this week"
 
@@ -569,7 +569,7 @@ class UserSettingsTestCase(UserTestBase):
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/')
         # Hiding doesn't affect the user-snippets page, just the weekly one.
-        self.assertNumSnippets(response.body, 1)
+        self.assertNumSnippets(response.body, 2)
         response = self.request_fetcher.get('/weekly?week=02-27-2012')
         self.assertNumSnippets(response.body, 0)
         # And it doesn't affect existing snippets, just empty ones.
@@ -647,7 +647,7 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/')
-        self.assertNumSnippets(response.body, 1)
+        self.assertNumSnippets(response.body, 2)
         self.assertInSnippet('>my snippet<', response.body, 0)
 
     def testSetAndViewInWeeklyMode(self):
@@ -674,7 +674,7 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         # This is done as other
         response = self.request_fetcher.get('/')
         self.assertIn('other@example.com', response.body)
-        self.assertNumSnippets(response.body, 1)
+        self.assertNumSnippets(response.body, 2)
         self.assertInSnippet('>other snippet<', response.body, 0)
         self.assertNotIn('user@example.com', response.body)
         self.assertNotIn('>my snippet<', response.body)
@@ -689,7 +689,7 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.login('user@example.com')
         response = self.request_fetcher.get('/')
         self.assertIn('user@example.com', response.body)
-        self.assertNumSnippets(response.body, 1)
+        self.assertNumSnippets(response.body, 2)
         self.assertInSnippet('>my snippet<', response.body, 0)
         self.assertNotIn('other@example.com', response.body)
         self.assertNotIn('>other snippet<', response.body)
@@ -707,7 +707,7 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
         response = self.request_fetcher.get('/')
-        self.assertNumSnippets(response.body, 2)
+        self.assertNumSnippets(response.body, 3)
         # Snippets go in reverse chronological order (i.e. newest first)
         self.assertInSnippet('>my second snippet<', response.body, 0)
         self.assertInSnippet('>my snippet<', response.body, 1)
@@ -834,7 +834,7 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 22)
         response = self.request_fetcher.get('/')
         self.assertNotIn('Due today', response.body)
-        self.assertNotIn('OVERDUE', response.body)
+        self.assertIn('OVERDUE', response.body)
 
     def testWarningsWhenNotDue(self):
         url = '/update_snippet?week=02-13-2012&snippet=my+snippet'
@@ -867,7 +867,7 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         # Also make sure we urlize on the user page.
         self.login('2@example.com')
         response = self.request_fetcher.get('/?u=user@example.com')
-        self.assertNumSnippets(response.body, 1)
+        self.assertNumSnippets(response.body, 2)
         self.assertInSnippet(
             '>visit <a href="http://foo.com">http://foo.com</a><',
             response.body, 0)
@@ -958,7 +958,7 @@ class NosnippetGapFillingTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
         response = self.request_fetcher.get('/')
-        self.assertNumSnippets(response.body, 1)
+        self.assertNumSnippets(response.body, 2)
 
     def testOneSnippetInDistantPast(self):
         url = '/update_snippet?week=02-21-2011&snippet=old+snippet'
@@ -987,7 +987,7 @@ class NosnippetGapFillingTestCase(UserTestBase):
         url = '/update_snippet?week=02-18-2013&snippet=future+snippet'
         self.request_fetcher.get(url)
         response = self.request_fetcher.get('/')
-        self.assertNumSnippets(response.body, 1)
+        self.assertNumSnippets(response.body, 54)
         self.assertInSnippet('future snippet', response.body, 0)
 
         response = self.request_fetcher.get('/weekly')

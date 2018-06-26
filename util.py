@@ -87,6 +87,17 @@ def existingsnippet_monday(today):
     return end_monday.date()
 
 
+def _backfill_missing_snippets(user, all_snippets,
+                               current_monday, first_allowed_monday):
+    monday_ptr = current_monday - datetime.timedelta(7)
+    while monday_ptr - first_allowed_monday >= datetime.timedelta(0):
+        all_snippets.insert(0,
+            Snippet(email=user.email, week=monday_ptr,
+                    private=user.private_snippets,
+                    is_markdown=user.uses_markdown))
+        monday_ptr = monday_ptr - datetime.timedelta(7)
+
+
 def fill_in_missing_snippets(existing_snippets, user, user_email, today):
     """Make sure that the snippets array has a Snippet entry for every week.
 
@@ -111,10 +122,14 @@ def fill_in_missing_snippets(existing_snippets, user, user_email, today):
       A new list of Snippet objects, without any holes.
     """
     end_monday = newsnippet_monday(today)
+    first_allowed_monday = newsnippet_monday(user.created) - datetime.timedelta(7)
     if not existing_snippets:         # no snippets at all?  Just do this week
-        return [Snippet(email=user_email, week=end_monday,
-                        private=user.private_snippets,
-                        is_markdown=user.uses_markdown)]
+        all_snippets = [Snippet(email=user_email, week=end_monday,
+                                private=user.private_snippets,
+                                is_markdown=user.uses_markdown)]
+        _backfill_missing_snippets(user, all_snippets,
+                                   end_monday, first_allowed_monday)
+        return all_snippets
 
     # Add a sentinel, one week past the last week we actually want.
     # We'll remove it at the end.
@@ -122,6 +137,9 @@ def fill_in_missing_snippets(existing_snippets, user, user_email, today):
                                      week=end_monday + datetime.timedelta(7)))
 
     all_snippets = [existing_snippets[0]]   # start with the oldest snippet
+    if all_snippets[0].week - first_allowed_monday >= datetime.timedelta(7):
+        _backfill_missing_snippets(user, all_snippets,
+                                   all_snippets[0].week, first_allowed_monday)
     for snippet in existing_snippets[1:]:
         while snippet.week - all_snippets[-1].week > datetime.timedelta(7):
             missing_week = all_snippets[-1].week + datetime.timedelta(7)
