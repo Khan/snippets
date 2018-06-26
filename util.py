@@ -87,13 +87,31 @@ def existingsnippet_monday(today):
     return end_monday.date()
 
 
+_ONE_WEEK = datetime.timedelta(7)
+
+
+def _backfill_missing_snippets(user, all_snippets,
+                               current_monday, first_allowed_monday):
+    monday_ptr = current_monday - _ONE_WEEK
+    while monday_ptr >= first_allowed_monday:
+        all_snippets.insert(0,
+                            Snippet(
+                                email=user.email,
+                                week=monday_ptr,
+                                private=user.private_snippets,
+                                is_markdown=user.uses_markdown))
+        monday_ptr -= _ONE_WEEK
+
+
 def fill_in_missing_snippets(existing_snippets, user, user_email, today):
     """Make sure that the snippets array has a Snippet entry for every week.
 
     The db may have holes in it -- weeks where the user didn't write a
     snippet.  Augment the given snippets array so that it has no holes,
-    by adding in default snippet entries if necessary.  Note it does
-    not add these entries to the db, it just adds them to the array.
+    by adding in default snippet entries if necessary. Also backfill empty
+    snippets up until one week before user's registration week.
+    Note it does not add these entries to the db, it just adds them
+    to the array.
 
     Arguments:
        existing_snippets: a list of Snippet objects for a given user.
@@ -108,23 +126,33 @@ def fill_in_missing_snippets(existing_snippets, user, user_email, today):
          fill up to the current week.
 
     Returns:
-      A new list of Snippet objects, without any holes.
+      A new list of Snippet objects, without any holes,
+      up to one week before user's registration week.
     """
     end_monday = newsnippet_monday(today)
-    if not existing_snippets:         # no snippets at all?  Just do this week
-        return [Snippet(email=user_email, week=end_monday,
-                        private=user.private_snippets,
-                        is_markdown=user.uses_markdown)]
+    first_allowed_monday = newsnippet_monday(user.created) - _ONE_WEEK
+    # No snippets at all? Fill empty snippets up to one week before user's
+    # registration week.
+    if not existing_snippets:
+        all_snippets = [Snippet(email=user_email, week=end_monday,
+                                private=user.private_snippets,
+                                is_markdown=user.uses_markdown)]
+        _backfill_missing_snippets(user, all_snippets,
+                                   end_monday, first_allowed_monday)
+        return all_snippets
 
     # Add a sentinel, one week past the last week we actually want.
     # We'll remove it at the end.
     existing_snippets.append(Snippet(email=user_email,
-                                     week=end_monday + datetime.timedelta(7)))
+                                     week=end_monday + _ONE_WEEK))
 
     all_snippets = [existing_snippets[0]]   # start with the oldest snippet
+    if all_snippets[0].week - first_allowed_monday >= _ONE_WEEK:
+        _backfill_missing_snippets(user, all_snippets,
+                                   all_snippets[0].week, first_allowed_monday)
     for snippet in existing_snippets[1:]:
-        while snippet.week - all_snippets[-1].week > datetime.timedelta(7):
-            missing_week = all_snippets[-1].week + datetime.timedelta(7)
+        while snippet.week - all_snippets[-1].week > _ONE_WEEK:
+            missing_week = all_snippets[-1].week + _ONE_WEEK
             all_snippets.append(Snippet(email=user_email, week=missing_week,
                                         private=user.private_snippets,
                                         is_markdown=user.uses_markdown))
