@@ -33,12 +33,14 @@ class User(db.Model):
     wants_email = db.BooleanProperty(default=True)     # get nag emails?
     # TODO(csilvers): make a ListProperty instead.
     wants_to_view = db.TextProperty(default='all')     # comma-separated list
+    display_name = db.TextProperty(default='')         #  display name of the user
 
 
 class Snippet(db.Model):
     """Every snippet is identified by the monday of the week it goes with."""
     created = db.DateTimeProperty()
     last_modified = db.DateTimeProperty(auto_now=True)
+    display_name = db.StringProperty()        # display name of the user
     email = db.StringProperty(required=True)  # week+email: key to this record
     week = db.DateProperty(required=True)     # the monday of the week
     text = db.TextProperty()

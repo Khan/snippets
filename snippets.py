@@ -54,7 +54,7 @@ def _current_user_email():
 
 
 def _get_or_create_user(email, put_new_user=True):
-    """Return the user object with the given email, creating if if needed.
+    """Return the user object with the given email, creating it if needed.
 
     Considers the permissions scope of the currently logged in web user,
     and raises an IndexError if the currently logged in user is not the same as
@@ -251,20 +251,19 @@ class SummaryPage(BaseHandler):
         user_q = models.User.all()
         results = user_q.fetch(1000)
         email_to_category = {}
-        hidden_users = set()      # emails of users with the 'hidden' property
+        email_to_user = {}
         for result in results:
             # People aren't very good about capitalizing their
             # categories consistently, so we enforce title-case,
             # with exceptions for 'and'.
             email_to_category[result.email] = _title_case(result.category)
-            if result.is_hidden:
-                hidden_users.add(result.email)
+            email_to_user[result.email] = result
 
-        # Collect the snippets by category.  As we see each email,
+        # Collect the snippets and users by category.  As we see each email,
         # delete it from email_to_category.  At the end of this,
         # email_to_category will hold people who did not give
         # snippets this week.
-        snippets_by_category = {}
+        snippets_and_users_by_category = {}
         for snippet in snippets:
             # Ignore this snippet if we don't have permission to view it.
             if (snippet.private and
@@ -274,7 +273,15 @@ class SummaryPage(BaseHandler):
             category = email_to_category.get(
                 snippet.email, models.NULL_CATEGORY
             )
-            snippets_by_category.setdefault(category, []).append(snippet)
+            if snippet.email in email_to_user:
+                snippets_and_users_by_category.setdefault(category, []).append(
+                    (snippet, email_to_user[snippet.email])
+                )
+            else:
+                snippets_and_users_by_category.setdefault(category, []).append(
+                    (snippet, models.User(email=snippet.email))
+                )
+
             if snippet.email in email_to_category:
                 del email_to_category[snippet.email]
 
@@ -283,17 +290,21 @@ class SummaryPage(BaseHandler):
         # means: pretend they don't exist until they have a non-empty
         # snippet again.)
         for (email, category) in email_to_category.iteritems():
-            if email not in hidden_users:
+            if not email_to_user[email].is_hidden:
                 snippet = models.Snippet(email=email, week=week)
-                snippets_by_category.setdefault(category, []).append(snippet)
+                snippets_and_users_by_category.setdefault(category, []).append(
+                    (snippet, email_to_user[snippet.email])
+                )
 
         # Now get a sorted list, categories in alphabetical order and
         # each snippet-author within the category in alphabetical
-        # order.  The data structure is ((category, (snippet, ...)), ...)
+        # order.
+        # The data structure is ((category, ((snippet, user), ...)), ...)
         categories_and_snippets = []
-        for (category, snippets) in snippets_by_category.iteritems():
-            snippets.sort(key=lambda snippet: snippet.email)
-            categories_and_snippets.append((category, snippets))
+        for (category,
+             snippets_and_users) in snippets_and_users_by_category.iteritems():
+            snippets_and_users.sort(key=lambda (snippet, user): snippet.email)
+            categories_and_snippets.append((category, snippets_and_users))
         categories_and_snippets.sort()
 
         template_values = {
@@ -328,21 +339,27 @@ class UpdateSnippet(BaseHandler):
         q.filter('week = ', week)
         snippet = q.get()
 
+        # When adding a snippet, make sure we create a user record for
+        # that email as well, if it doesn't already exist.
+        user = _get_or_create_user(email)
+
+        # Store user's display_name in snippet so that if a user is later
+        # deleted, we could still show his / her display_name.
         if snippet:
             snippet.text = text   # just update the snippet text
+            snippet.display_name = user.display_name
             snippet.private = private
             snippet.is_markdown = is_markdown
         else:
             # add the snippet to the db
-            snippet = models.Snippet(created=_TODAY_FN(), email=email,
-                                     week=week, text=text, private=private,
+            snippet = models.Snippet(created=_TODAY_FN(),
+                                     display_name=user.display_name,
+                                     email=email, week=week,
+                                     text=text, private=private,
                                      is_markdown=is_markdown)
         db.put(snippet)
         db.get(snippet.key())  # ensure db consistency for HRD
 
-        # When adding a snippet, make sure we create a user record for
-        # that email as well, if it doesn't already exist.
-        _get_or_create_user(email)
         self.response.set_status(200)
 
     def post(self):
@@ -459,6 +476,7 @@ class UpdateSettings(BaseHandler):
                           'deleted.)+Have+a+nice+day!')
             return
 
+        display_name = self.request.get('display_name')
         category = self.request.get('category')
         uses_markdown = self.request.get('markdown') == 'yes'
         private_snippets = self.request.get('private') == 'yes'
@@ -478,6 +496,7 @@ class UpdateSettings(BaseHandler):
         is_hidden = self.request.get('is_hidden', 'no') == 'yes'
 
         user.is_hidden = is_hidden
+        user.display_name = display_name
         user.category = category or models.NULL_CATEGORY
         user.uses_markdown = uses_markdown
         user.private_snippets = private_snippets
