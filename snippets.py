@@ -226,7 +226,7 @@ def _title_case(s):
     SMALL = 'a|an|and|as|at|but|by|en|for|if|in|of|on|or|the|to|v\.?|via|vs\.?'
     # We purposefully don't match small words at the beginning of a string.
     SMALL_RE = re.compile(r' (%s)\b' % SMALL, re.I)
-    return SMALL_RE.sub(lambda m: ' ' + m.group(1).lower(), s.title())
+    return SMALL_RE.sub(lambda m: ' ' + m.group(1).lower(), s.title().strip())
 
 
 class SummaryPage(BaseHandler):
