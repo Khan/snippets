@@ -1486,6 +1486,14 @@ class TitleCaseTestCase(unittest.TestCase):
         self.assertEqual('A Word to the Wise',
                          snippets._title_case('a wOrd to The WIse'))
 
+    def testTrimLeadingSpaces(self):
+        self.assertEqual('A Word to the Wise',
+                         snippets._title_case('  a word to the wise'))
+
+    def testTrimTrailingSpaces(self):
+        self.assertEqual('A Word to the Wise',
+                         snippets._title_case('a word to the wise  '))
+
 
 class DisplayNameTestCase(UserTestBase):
     """Manipulate a user's display name and check it in weekly page."""
