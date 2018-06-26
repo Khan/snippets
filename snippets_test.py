@@ -1487,5 +1487,60 @@ class TitleCaseTestCase(unittest.TestCase):
                          snippets._title_case('a wOrd to The WIse'))
 
 
+class DisplayNameTestCase(UserTestBase):
+    """Manipulate a user's display name and check it in weekly page."""
+    def setUp(self):
+        super(UserTestBase, self).setUp()
+        self.login('user@example.com')
+
+    def testUserHasEmptyDisplayName(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('<h3>user@example.com:</h3>', response.body, 0)
+
+    def testUserHasDisplayName(self):
+        self.request_fetcher.get(
+            '/update_settings?u=user@example.com&display_name=test+name')
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('<h3>test name (user@example.com):</h3>',
+                             response.body, 0)
+
+    def testSnippetHasDisplayName(self):
+        self.request_fetcher.get(
+            '/update_settings?u=user@example.com&display_name=test+name')
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        self.request_fetcher.get(
+            '/update_settings?u=user@example.com&display_name=')
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('<h3>test name (user@example.com):</h3>',
+                             response.body, 0)
+
+    def testSnippetFromDeletedUser(self):
+        url = '/update_snippet?week=02-20-2012&snippet=my+snippet'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('<h3>user@example.com:</h3>', response.body, 0)
+
+        self.request_fetcher.get(
+            '/update_settings?u=user@example.com&display_name=test+name')
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('<h3>test name (user@example.com):</h3>',
+                             response.body, 0)
+
+        url = '/update_settings?u=user@example.com&delete=Delete'
+        self.request_fetcher.get(url)
+        response = self.request_fetcher.get('/weekly?week=02-20-2012')
+        self.assertNumSnippets(response.body, 1)
+        self.assertInSnippet('<h3>user@example.com:</h3>', response.body, 0)
+
 if __name__ == '__main__':
     unittest.main()

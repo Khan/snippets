@@ -19,6 +19,8 @@
         <img class="snippet-avatar" src="http://www.gravatar.com/avatar/{{snippet.email_md5_hash}}?s=50&d=retro">
         {% if user.display_name %}
           <h3>{{user.display_name}} ({{user.email}}):</h3>
+        {% elif snippet.display_name %}
+          <h3>{{snippet.display_name}} ({{user.email}}):</h3>
         {% else %}
           <h3>{{user.email}}:</h3>
         {% endif %}

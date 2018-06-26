@@ -54,7 +54,7 @@ def _current_user_email():
 
 
 def _get_or_create_user(email, put_new_user=True):
-    """Return the user object with the given email, creating if if needed.
+    """Return the user object with the given email, creating it if needed.
 
     Considers the permissions scope of the currently logged in web user,
     and raises an IndexError if the currently logged in user is not the same as
@@ -273,9 +273,15 @@ class SummaryPage(BaseHandler):
             category = email_to_category.get(
                 snippet.email, models.NULL_CATEGORY
             )
-            snippets_and_users_by_category.setdefault(category, []).append(
-                (snippet, email_to_user[snippet.email])
-            )
+            if snippet.email in email_to_user:
+                snippets_and_users_by_category.setdefault(category, []).append(
+                    (snippet, email_to_user[snippet.email])
+                )
+            else:
+                snippets_and_users_by_category.setdefault(category, []).append(
+                    (snippet, models.User(email=snippet.email))
+                )
+
             if snippet.email in email_to_category:
                 del email_to_category[snippet.email]
 
@@ -331,21 +337,25 @@ class UpdateSnippet(BaseHandler):
         q.filter('week = ', week)
         snippet = q.get()
 
+        # When adding a snippet, make sure we create a user record for
+        # that email as well, if it doesn't already exist.
+        user = _get_or_create_user(email)
+
         if snippet:
             snippet.text = text   # just update the snippet text
+            snippet.display_name = user.display_name
             snippet.private = private
             snippet.is_markdown = is_markdown
         else:
             # add the snippet to the db
-            snippet = models.Snippet(created=_TODAY_FN(), email=email,
-                                     week=week, text=text, private=private,
+            snippet = models.Snippet(created=_TODAY_FN(),
+                                     display_name=user.display_name,
+                                     email=email, week=week,
+                                     text=text, private=private,
                                      is_markdown=is_markdown)
         db.put(snippet)
         db.get(snippet.key())  # ensure db consistency for HRD
 
-        # When adding a snippet, make sure we create a user record for
-        # that email as well, if it doesn't already exist.
-        _get_or_create_user(email)
         self.response.set_status(200)
 
     def post(self):

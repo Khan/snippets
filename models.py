@@ -40,6 +40,7 @@ class Snippet(db.Model):
     """Every snippet is identified by the monday of the week it goes with."""
     created = db.DateTimeProperty()
     last_modified = db.DateTimeProperty(auto_now=True)
+    display_name = db.StringProperty()        # display name of the user
     email = db.StringProperty(required=True)  # week+email: key to this record
     week = db.DateProperty(required=True)     # the monday of the week
     text = db.TextProperty()
