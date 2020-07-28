@@ -32,4 +32,4 @@ libraries:
   version: "2.6"
 # This also brings in webapp2_extras:
 - name: webapp2
-  version: "2.5.1"
+  version: "2.5.2"
