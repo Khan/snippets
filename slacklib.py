@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
-
 """Snippets server -> Slack integration.
 
 This provides HipChat integration with the snippet server, for
@@ -20,13 +18,14 @@ we get that from /admin/settings as well.
 import datetime
 import json
 import logging
-import re
 import os
+import re
 import textwrap
-import urllib
-import urllib2
-import webapp2
+import urllib.error
+import urllib.parse
+import urllib.request
 
+import flask
 from google.appengine.ext import db
 from google.appengine.api import memcache
 
@@ -59,7 +58,7 @@ def _web_api(api_method, payload):
     app_settings = models.AppSettings.get()
     payload.setdefault('token', app_settings.slack_token)
     uri = 'https://slack.com/api/' + api_method
-    r = urllib2.urlopen(uri, urllib.urlencode(payload))
+    r = urllib.request.urlopen(uri, urllib.parse.urlencode(payload))
 
     # check return code for server errors
     if r.getcode() != 200:
@@ -116,7 +115,7 @@ def send_to_slack_channel(channel, msg):
             'icon_emoji': ':pencil:',
             'unfurl_links': False,    # no link previews, please
         })
-    except ValueError, why:
+    except ValueError as why:
         logging.error('Failed sending message to slack: %s', why)
 
 
@@ -368,95 +367,95 @@ def command_dump(user_email):
     return "```{}```".format(snippet.text or 'No snippet yet for this week')
 
 
-class SlashCommand(webapp2.RequestHandler):
-    def post(self):
-        """Process an incoming slash command from Slack.
+def slash_command_handler():
+    """Process an incoming slash command from Slack.
 
-        Incoming request POST looks like the following (example taken from
-        https://api.slack.com/slash-commands):
-            token=gIkuvaNzQIHg97ATvDxqgjtO
-            team_id=T0001
-            team_domain=example
-            channel_id=C2147483705
-            channel_name=test
-            user_id=U2147483697
-            user_name=Steve
-            command=/weather
-            text=94070
-        """
-        req, res = self.request, self.response
+    Incoming request POST looks like the following (example taken from
+    https://api.slack.com/slash-commands):
+        token=gIkuvaNzQIHg97ATvDxqgjtO
+        team_id=T0001
+        team_domain=example
+        channel_id=C2147483705
+        channel_name=test
+        user_id=U2147483697
+        user_name=Steve
+        command=/weather
+        text=94070
+    """
+    req, res = flask.request, flask.response
 
-        expected_token = models.AppSettings.get().slack_slash_token
+    expected_token = models.AppSettings.get().slack_slash_token
 
-        if not expected_token:
-            res.write('Slack slash commands disabled. An admin '
-                      'can enable them at /admin/settings')
+    if not expected_token:
+        res.write('Slack slash commands disabled. An admin '
+                    'can enable them at /admin/settings')
+        return
+
+    # verify slash API post token for security
+    if _REQUIRE_SLASH_TOKEN:
+        token = req.get('token')
+        if token != expected_token:
+            logging.error("POST MADE WITH INVALID TOKEN")
+            res.write("OH NO YOU DIDNT! Security issue plz contact admin.")
             return
 
-        # verify slash API post token for security
-        if _REQUIRE_SLASH_TOKEN:
-            token = req.get('token')
-            if token != expected_token:
-                logging.error("POST MADE WITH INVALID TOKEN")
-                res.write("OH NO YOU DIDNT! Security issue plz contact admin.")
-                return
 
-        user_name = req.get('user_name')
-        user_id = req.get('user_id')
-        text = req.get('text')
+    user_name = req.get('user_name')
+    user_id = req.get('user_id')
+    text = req.get('text')
 
-        try:
-            user_email = _get_user_email_cached(user_id)
-        except ValueError:
-            logging.error("Failed getting %s email from Slack API", user_name)
-            res.write(
-                "Error getting your email address from the Slack API! "
-                "Please contact an admin and report the time of this error."
-            )
-            return
+    try:
+        user_email = _get_user_email_cached(user_id)
+    except ValueError:
+        logging.error("Failed getting %s email from Slack API", user_name)
+        res.write(
+            "Error getting your email address from the Slack API! "
+            "Please contact an admin and report the time of this error."
+        )
+        return
 
-        words = text.strip().split()
-        if not words:
-            logging.info('null (list) command from user %s', user_name)
+    words = text.strip().split()
+    if not words:
+        logging.info('null (list) command from user %s', user_name)
+        res.write(command_list(user_email))
+    else:
+        cmd, args = words[0], words[1:]
+        if cmd == 'help':
+            logging.info('help command from user %s', user_name)
+            res.write(command_help())
+        elif cmd == 'whoami':
+            # undocumented command to echo user email back
+            logging.info('whoami command from user %s', user_name)
+            res.write(user_email)
+        elif cmd == 'whoami!':
+            # whoami! forces a refresh of cache, for debugging
+            logging.info('whoami! command from user %s', user_name)
+            logging.info('whoami! potential cached email for %s: %s',
+                            user_name, user_email)
+            refreshed = _get_user_email_cached(user_id, force_refresh=True)
+            logging.info('whoami! refreshed email for %s: %s',
+                            user_name, refreshed)
+            res.write(refreshed)
+        elif cmd == 'list':
+            # this is the same as the null command, but support for UX
+            logging.info('list command from user %s', user_name)
             res.write(command_list(user_email))
+        elif cmd == 'last':
+            logging.info('last command from user %s', user_name)
+            res.write(command_last(user_email))
+        elif cmd == 'add':
+            logging.info('add command from user %s', user_name)
+            res.write(command_add(user_email, " ".join(args)))
+        elif cmd == 'del':
+            logging.info('del command from user %s', user_name)
+            res.write(command_del(user_email, args))
+        elif cmd == 'dump':
+            logging.info('dump command from user %s', user_name)
+            res.write(command_dump(user_email))
         else:
-            cmd, args = words[0], words[1:]
-            if cmd == 'help':
-                logging.info('help command from user %s', user_name)
-                res.write(command_help())
-            elif cmd == 'whoami':
-                # undocumented command to echo user email back
-                logging.info('whoami command from user %s', user_name)
-                res.write(user_email)
-            elif cmd == 'whoami!':
-                # whoami! forces a refresh of cache, for debugging
-                logging.info('whoami! command from user %s', user_name)
-                logging.info('whoami! potential cached email for %s: %s',
-                             user_name, user_email)
-                refreshed = _get_user_email_cached(user_id, force_refresh=True)
-                logging.info('whoami! refreshed email for %s: %s',
-                             user_name, refreshed)
-                res.write(refreshed)
-            elif cmd == 'list':
-                # this is the same as the null command, but support for UX
-                logging.info('list command from user %s', user_name)
-                res.write(command_list(user_email))
-            elif cmd == 'last':
-                logging.info('last command from user %s', user_name)
-                res.write(command_last(user_email))
-            elif cmd == 'add':
-                logging.info('add command from user %s', user_name)
-                res.write(command_add(user_email, " ".join(args)))
-            elif cmd == 'del':
-                logging.info('del command from user %s', user_name)
-                res.write(command_del(user_email, args))
-            elif cmd == 'dump':
-                logging.info('dump command from user %s', user_name)
-                res.write(command_dump(user_email))
-            else:
-                logging.info('unknown command %s from user %s', cmd, user_name)
-                res.write(
-                    "I don't understand what you said! "
-                    "Perhaps you meant one of these?\n```%s```\n"
-                    % command_usage()
-                )
+            logging.info('unknown command %s from user %s', cmd, user_name)
+            res.write(
+                "I don't understand what you said! "
+                "Perhaps you meant one of these?\n```%s```\n"
+                % command_usage()
+            )

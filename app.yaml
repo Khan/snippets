@@ -1,7 +1,6 @@
-runtime: python27
-threadsafe: yes
-api_version: 1
+runtime: python310
 default_expiration: "365d"
+app_engine_apis: true
 
 handlers:
 - url: /static
@@ -13,23 +12,11 @@ handlers:
   upload: static/favicon.ico
 
 - url: /admin/.*
-  script: snippets.application
+  script: snippets.app
   login: admin
 
 - url: .*
-  script: snippets.application
-
-skip_files:
-- .git
-- .DS_Store
-- .*.pyc
+  script: snippets.app
 
 builtins:
 - remote_api: on
-
-libraries:
-- name: jinja2
-  version: "2.6"
-# This also brings in webapp2_extras:
-- name: webapp2
-  version: "2.5.1"

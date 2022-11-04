@@ -9,18 +9,19 @@ there for how to do so.
 """
 
 import logging
-import urllib
-import urllib2
+import urllib.error
+import urllib.parse
+import urllib.request
 
-from google.appengine.ext import webapp
+import flask
 
 import models
 
 
 def _make_hipchat_api_call(post_dict_with_secret_token):
     # This is a separate function just to make it easy to mock for tests.
-    r = urllib2.urlopen('https://api.hipchat.com/v1/rooms/message',
-                        urllib.urlencode(post_dict_with_secret_token))
+    r = urllib.request.urlopen('https://api.hipchat.com/v1/rooms/message',
+                        urllib.parse.urlencode(post_dict_with_secret_token))
     if r.getcode() != 200:
         raise ValueError(r.read())
 
@@ -54,14 +55,13 @@ def send_to_hipchat_room(room_name, message):
 
     try:
         _make_hipchat_api_call(post_dict)
-    except Exception, why:
+    except Exception as why:
         del post_dict['auth_token']     # don't log the secret token!
-        logging.error('Failed sending %s to hipchat: %s'
-                      % (post_dict, why))
+        logging.error('Failed sending %s to hipchat: %s',
+                      post_dict, why)
 
 
-class TestSendToHipchat(webapp.RequestHandler):
+def test_send_to_hipchat_handler():
     """Send a (fixed) message to the hipchat room."""
-    def get(self):
-        send_to_hipchat_room('HipChat Tests', 'Test of snippets-to-hipchat')
-        self.response.out.write('OK')
+    send_to_hipchat_room('HipChat Tests', 'Test of snippets-to-hipchat')
+    flask.response.out.write('OK')
