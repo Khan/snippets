@@ -26,7 +26,6 @@ import urllib.parse
 import urllib.request
 
 import flask
-from google.appengine.ext import db
 from google.appengine.api import memcache
 
 import models
@@ -304,8 +303,8 @@ def command_add(user_email, new_item):
     snippet.is_markdown = True
 
     # TODO(mroth): we should abstract out DB writes to a library wrapper
-    db.put(snippet)
-    db.get(snippet.key())    # ensure db consistency for HRD
+    snippet.put()
+    snippet.key.get()    # ensure db consistency for HRD
     return "Added *{}* to your weekly snippets.".format(new_item)
 
 
@@ -353,8 +352,8 @@ def command_del(user_email, args):
     snippet.text = _markdown_list(items)
     snippet.is_markdown = True
 
-    db.put(snippet)
-    db.get(snippet.key())    # ensure db consistency for HRD
+    snippet.put()
+    snippet.key.get()    # ensure db consistency for HRD
     return "Removed *{}* from your weekly snippets.".format(removed_item)
 
 

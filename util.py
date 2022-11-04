@@ -3,16 +3,13 @@ import datetime
 from models import Snippet
 from models import User
 
-
 # Functions for retrieving a user
-def get_user(email):
+def get_user(email: str):
     """Return the user object with the given email, or None if not found."""
-    q = User.all()
-    q.filter('email = ', email)
-    return q.get()
+    return User.query(User.email == email).get()
 
 
-def get_user_or_die(email):
+def get_user_or_die(email: str):
     user = get_user(email)
     if not user:
         raise ValueError('User "%s" not found' % email)
@@ -21,18 +18,20 @@ def get_user_or_die(email):
 
 def snippets_for_user(user_email):
     """Return all snippets for a given user, oldest snippet first."""
-    snippets_q = Snippet.all()
-    snippets_q.filter('email = ', user_email)
-    snippets_q.order('week')            # this puts oldest snippet first
-    return snippets_q.fetch(1000)       # good for many years...
+    return (
+        Snippet.query(User.email == user_email)
+               .order('week')           # this puts oldest snippet first
+               .fetch(1000)             # good for many years...
+    )
 
 
 def most_recent_snippet_for_user(user_email):
     """Return the most recent snippet for a given user, or None."""
-    snippets_q = Snippet.all()
-    snippets_q.filter('email = ', user_email)
-    snippets_q.order('-week')            # this puts newest snippet first
-    return snippets_q.get()
+    return (
+        Snippet.query(User.email == user_email)
+               .order('-week')          # this puts newest snippet first
+               .get()
+    )
 
 
 # Functions around filling in snippets

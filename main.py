@@ -17,7 +17,7 @@ import urllib
 
 from google.appengine.api import mail, wrap_wsgi_app
 from google.appengine.api import users
-from google.appengine.ext import db
+from google.cloud import ndb
 import flask
 import jinja2
 
@@ -26,11 +26,24 @@ import models
 import slacklib
 import util
 
+# This allows mocking in a different day, for testing.
+_TODAY_FN = datetime.datetime.now
+
 app = flask.Flask(__name__)
 app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
 
-# This allows mocking in a different day, for testing.
-_TODAY_FN = datetime.datetime.now
+
+class NDBMiddleware:
+    """WSGI middleware to wrap the app in Google Cloud NDB context"""
+    def __init__(self, app):
+        self.app = app
+        self.client = ndb.Client()
+
+    def __call__(self, environ, start_response):
+        with self.client.context():
+            return self.app(environ, start_response)
+
+app.wsgi_app = NDBMiddleware(app.wsgi_app)
 
 
 @app.template_filter("readable_date")
@@ -82,7 +95,8 @@ def _get_or_create_user(email, put_new_user=True):
         except ValueError:
             # TODO(csilvers): do this instead:
             #                 /admin/settings?redirect_to=user_setting
-            return None
+            # return None
+            raise  # TODO(benley) implement Redirect exception
 
         domain = email.split('@')[-1]
         allowed_domains = app_settings.domains
@@ -100,8 +114,8 @@ def _get_or_create_user(email, put_new_user=True):
                            private_snippets=app_settings.default_private,
                            wants_email=app_settings.default_email)
         if put_new_user:
-            db.put(user)
-            db.get(user.key())    # ensure db consistency for HRD
+            user.put()
+            user.key.get()  # ensure db consistency for HRD
     return user
 
 
@@ -230,13 +244,14 @@ def summary_page_handler():
     else:
         week = util.existingsnippet_monday(_TODAY_FN())
 
-    snippets_q = models.Snippet.all()
-    snippets_q.filter('week = ', week)
+    snippets_q = models.Snippet.query(
+        models.Snippet.week == week
+    )
     snippets = snippets_q.fetch(1000)   # good for many users...
     # TODO(csilvers): filter based on wants_to_view
 
     # Get all the user records so we can categorize snippets.
-    user_q = models.User.all()
+    user_q = models.User.query()
     results = user_q.fetch(1000)
     email_to_category = {}
     email_to_user = {}
@@ -318,9 +333,10 @@ def update_snippet(email: str,
 
     # TODO(csilvers): make this get-update-put atomic.
     # (maybe make the snippet id be email + week).
-    q = models.Snippet.all()
-    q.filter('email = ', email)
-    q.filter('week = ', week)
+    q = models.Snippet.query(
+               models.Snippet.email == email,
+               models.Snippet.week == week
+    )
     snippet = q.get()
 
     # When adding a snippet, make sure we create a user record for
@@ -341,8 +357,8 @@ def update_snippet(email: str,
                                  email=email, week=week,
                                  text=text, private=private,
                                  is_markdown=is_markdown)
-    db.put(snippet)
-    db.get(snippet.key())  # ensure db consistency for HRD
+    snippet.put()
+    snippet.key.get()  # ensure db consistency for HRD
 
 
 @app.route("/update_snippet", methods=["POST", "GET"])
@@ -409,10 +425,13 @@ def settings_handler():
                            ' settings for %s' % user_email)
     # We won't put() the new user until the settings are saved.
     user = _get_or_create_user(user_email, put_new_user=False)
-    try:
-        user.key()
+
+    # NOTE: this will break if you explicitly set the key when creating the
+    #       user entity!
+    #       See https://groups.google.com/g/google-appengine/c/Tm8NDWIvc70
+    if user.key and user.key.id():
         is_new_user = False
-    except db.NotSavedError:
+    else:
         is_new_user = True
 
     template_values = {
@@ -454,7 +473,7 @@ def update_settings_handler():
         time.sleep(0.1)   # some time for eventual consistency
         return flask.redirect('/weekly?msg=You+are+now+hidden.+Have+a+nice+day!')
     elif flask.request.args.get('delete'):
-        db.delete(user)
+        user.delete()
         return flask.redirect('/weekly?msg=Your+account+has+been+deleted.+'
                               '(Note+your+existing+snippets+have+NOT+been+'
                               'deleted.)+Have+a+nice+day!')
@@ -485,8 +504,8 @@ def update_settings_handler():
     user.private_snippets = private_snippets
     user.wants_email = wants_email
     user.wants_to_view = wants_to_view
-    db.put(user)
-    db.get(user.key())  # ensure db consistency for HRD
+    user.put()
+    user.key.get()  # ensure db consistency for HRD
 
     redirect_to = flask.request.args.get('redirect_to')
     if redirect_to == 'snippet_entry':   # true for new_user.html
@@ -543,7 +562,7 @@ def admin_update_settings_handler():
     domains = re.sub(r'\s+', ',', domains)
     domains = [d for d in domains.split(',') if d]
 
-    @db.transactional
+    @ndb.transactional
     def update_settings():
         app_settings = models.AppSettings.get(create_if_missing=True,
                                                 domains=domains)
@@ -576,7 +595,7 @@ def admin_manage_users_handler():
     sort_by = flask.request.args.get('sort_by', 'creation_time')
 
     # First, check if the user had clicked on a button.
-    for name, value in flask.request.params.items():
+    for name, value in flask.request.form.items():
         if name.startswith('hide '):
             email_of_user_to_hide = name[len('hide '):]
             # TODO(csilvers): move this get/update/put atomic into a txn
@@ -598,12 +617,12 @@ def admin_manage_users_handler():
         if name.startswith('delete '):
             email_of_user_to_delete = name[len('delete '):]
             user = util.get_user_or_die(email_of_user_to_delete)
-            db.delete(user)
+            user.delete()
             time.sleep(0.1)   # encourage eventual consistency
             return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+deleted'
                                   % (sort_by, email_of_user_to_delete))
 
-    user_q = models.User.all()
+    user_q = models.User.query()
     results = user_q.fetch(1000)
 
     # Tuple: (email, is-hidden, creation-time, days since last snippet)
@@ -672,7 +691,7 @@ def _get_email_to_current_snippet_map(today):
       a map from email (user.email for each user) to True or False,
       depending on if they've written snippets for this week or not.
     """
-    user_q = models.User.all()
+    user_q = models.User.query()
     users = user_q.fetch(1000)
     retval = {}
     for user in users:
@@ -681,8 +700,9 @@ def _get_email_to_current_snippet_map(today):
         retval[user.email] = False       # assume the worst, for now
 
     week = util.existingsnippet_monday(today)
-    snippets_q = models.Snippet.all()
-    snippets_q.filter('week = ', week)
+    snippets_q = models.Snippet.query(
+        models.Snippet.week == week
+    )
     snippets = snippets_q.fetch(1000)
     for snippet in snippets:
         if snippet.email in retval:      # don't introduce new keys here

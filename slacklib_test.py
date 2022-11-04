@@ -92,9 +92,9 @@ class SlashCommandTest(unittest.TestCase):
         ))
 
     def _most_recent_snippet(self, user_email):
-        snippets_q = models.Snippet.all()
-        snippets_q.filter('email = ', user_email)
-        snippets_q.order('-week')        # newest snippet first
+        snippets_q = models.Snippet.query(
+            models.Snippet.email == user_email
+        ).order('-week')  # newest snippet first
         return snippets_q.fetch(1)[0]
 
     def setUp(self):

@@ -804,7 +804,7 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
         # Now delete user 2
-        u = models.User.all().filter('email =', '2@example.com').get()
+        u = models.User.query(models.User.email == '2@example.com').get()
         u.delete()
 
         response = self.request_fetcher.get('/weekly?week=02-20-2012')
