@@ -175,7 +175,7 @@ def user_page_handler():
 
         template_values = {
             'new_user': True,
-            'login_url': users.create_login_url(flask.request.uri),
+            'login_url': users.create_login_url(flask.request.url),
             'logout_url': users.create_logout_url('/'),
             'username': user_email,
         }
@@ -277,7 +277,7 @@ def summary_page_handler():
     # unless a user is marked 'hidden'.  (That's what 'hidden'
     # means: pretend they don't exist until they have a non-empty
     # snippet again.)
-    for (email, category) in email_to_category.iteritems():
+    for (email, category) in email_to_category.items():
         if not email_to_user[email].is_hidden:
             snippet = models.Snippet(email=email, week=week)
             snippets_and_users_by_category.setdefault(category, []).append(
@@ -289,9 +289,9 @@ def summary_page_handler():
     # order.
     # The data structure is ((category, ((snippet, user), ...)), ...)
     categories_and_snippets = []
-    for (category,
-            snippets_and_users) in snippets_and_users_by_category.iteritems():
-        snippets_and_users.sort(key=lambda snippet, user: snippet.email)
+    for category, snippets_and_users in snippets_and_users_by_category.items():
+        # This looks stupid but python no longer allows lambda (snippet, user): snippet.email
+        snippets_and_users.sort(key=lambda snippet_user: snippet_user[0].email)
         categories_and_snippets.append((category, snippets_and_users))
     categories_and_snippets.sort()
 
@@ -309,15 +309,12 @@ def summary_page_handler():
     return flask.render_template('weekly_snippets.html', **template_values)
 
 
-def update_snippet(email):
-    week_string = flask.request.args.get('week')
-    week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
+def update_snippet(email: str,
+                   week: datetime.date,
+                   text: str,
+                   private: bool,
+                   is_markdown: bool):
     assert week.weekday() == 0, 'passed-in date must be a Monday'
-
-    text = flask.request.args.get('snippet')
-
-    private = flask.request.args.get('private') == 'True'
-    is_markdown = flask.request.args.get('is_markdown') == 'True'
 
     # TODO(csilvers): make this get-update-put atomic.
     # (maybe make the snippet id be email + week).
@@ -347,11 +344,21 @@ def update_snippet(email):
     db.put(snippet)
     db.get(snippet.key())  # ensure db consistency for HRD
 
-    flask.response.set_status(200)
 
-
-@app.route("/update_snippet")
+@app.route("/update_snippet", methods=["POST", "GET"])
 def update_snippet_handler():
+
+    if flask.request.method == "POST":
+        data = flask.request.form
+    elif flask.request.method == "GET":
+        data = flask.request.args
+
+    email = data.get('u', _current_user_email())
+    week_string = data.get('week')
+    week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
+    text = data.get('snippet')
+    private = data.get('private') == 'True'
+    is_markdown = data.get('is_markdown') == 'True'
 
     if flask.request.method == "POST":
         """handle ajax updates via POST
@@ -366,30 +373,25 @@ def update_snippet_handler():
             # 403s are the catch-all 'please log in error' here
             return flask.make_response({"status": 403, "message": "not logged in"}, 403)
 
-        email = flask.request.args.get('u', _current_user_email())
-
         if not _logged_in_user_has_permission_for(email):
             # TODO(marcos): present these messages to the ajax client
             error = ('You do not have permissions to update user'
                      ' snippets for %s' % email)
             return flask.make_response({"status": 403, "message": error}, 403)
 
-        update_snippet(email)
+        update_snippet(email, week, text, private, is_markdown)
         return flask.make_response({"status": 200, "message": "ok"})
 
     elif flask.request.method == "GET":
         if not users.get_current_user():
             return _login_page(flask.request)
 
-        email = flask.request.args.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(email):
             # TODO(csilvers): return a 403 here instead.
             raise RuntimeError('You do not have permissions to update user'
                                ' snippets for %s' % email)
 
-        update_snippet(email)
-
-        email = flask.request.args.get('u', _current_user_email())
+        update_snippet(email, week, text, private, is_markdown)
         return flask.redirect("/?msg=Snippet+saved&u=%s" % urllib.parse.quote(email))
 
 
@@ -574,7 +576,7 @@ def admin_manage_users_handler():
     sort_by = flask.request.args.get('sort_by', 'creation_time')
 
     # First, check if the user had clicked on a button.
-    for (name, value) in flask.request.params.iteritems():
+    for name, value in flask.request.params.items():
         if name.startswith('hide '):
             email_of_user_to_hide = name[len('hide '):]
             # TODO(csilvers): move this get/update/put atomic into a txn
@@ -730,7 +732,7 @@ def admin_send_reminder_email_handler():
                                   'reminder_email.txt', template_values)
 
     email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
-    for (user_email, has_snippet) in email_to_has_snippet.iteritems():
+    for user_email, has_snippet in email_to_has_snippet.items():
         if not has_snippet:
             _send_mail(user_email)
             logging.debug('sent reminder email to %s', user_email)
@@ -752,7 +754,7 @@ def admin_send_view_email_handler():
                                   'view_email.txt', template_values)
 
     email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
-    for (user_email, has_snippet) in email_to_has_snippet.iteritems():
+    for user_email, has_snippet in email_to_has_snippet.items():
         _send_mail(user_email, has_snippet)
         logging.debug('sent "view" email to %s', user_email)
 

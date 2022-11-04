@@ -10,4 +10,7 @@ test check:
 	python -m unittest discover -p '*_test.py'
 
 appcfg-update deploy:
-	gcloud app deploy --project "${APP}"
+	gcloud app deploy
+
+create-indexes:
+	gcloud datastore indexes create index.yaml

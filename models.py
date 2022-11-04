@@ -50,7 +50,7 @@ class Snippet(db.Model):
     @property
     def email_md5_hash(self):
         m = hashlib.md5()
-        m.update(self.email)
+        m.update(self.email.encode('utf-8'))
         return m.hexdigest()
 
 
