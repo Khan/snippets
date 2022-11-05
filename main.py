@@ -9,6 +9,7 @@ snippets in them.
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 
 import datetime
+from functools import cmp_to_key
 import logging
 import os
 import re
@@ -588,6 +589,11 @@ def admin_update_settings_handler():
         return flask.redirect("/admin/settings?msg=Changes+saved")
 
 
+def cmp(a, b):
+    """Python 2's cmp function, used in /admin/manage_users handler"""
+    return (a > b) - (a < b)
+
+
 @app.route("/admin/manage_users")
 def admin_manage_users_handler():
     """Lets admins delete and otherwise manage users."""
@@ -644,15 +650,17 @@ def admin_manage_users_handler():
     # We have to use 'cmp' here since we want ascending in the
     # primary key and descending in the secondary key, sometimes.
     if sort_by == 'email':
-        user_data.sort(lambda x, y: cmp(x[0], y[0]))
+        user_data.sort(key=cmp_to_key(lambda x, y: cmp(x[0], y[0])))
     elif sort_by == 'creation_time':
-        user_data.sort(lambda x, y: (-cmp(x[2] or datetime.datetime.min,
-                                          y[2] or datetime.datetime.min)
-                                     or cmp(x[0], y[0])))
+        user_data.sort(key=cmp_to_key(
+            lambda x, y: (-cmp(x[2] or datetime.datetime.min,
+                               y[2] or datetime.datetime.min)
+                          or cmp(x[0], y[0]))))
     elif sort_by == 'last_snippet_time':
-        user_data.sort(lambda x, y: (-cmp(1000 if x[3] is None else x[3],
-                                          1000 if y[3] is None else y[3])
-                                     or cmp(x[0], y[0])))
+        user_data.sort(key=cmp_to_key(
+            lambda x, y: (-cmp(1000 if x[3] is None else x[3],
+                               1000 if y[3] is None else y[3])
+                          or cmp(x[0], y[0]))))
     else:
         raise ValueError('Invalid sort_by value "%s"' % sort_by)
 
