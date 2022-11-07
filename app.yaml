@@ -12,11 +12,8 @@ handlers:
   upload: static/favicon.ico
 
 - url: /admin/.*
-  script: snippets.app
+  script: auto
   login: admin
-
-- url: .*
-  script: snippets.app
 
 builtins:
 - remote_api: on
