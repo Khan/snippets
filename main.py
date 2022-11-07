@@ -19,6 +19,7 @@ import urllib
 from google.appengine.api import mail, wrap_wsgi_app
 from google.appengine.api import users
 from google.cloud import ndb
+import google.cloud.logging
 import flask
 import jinja2
 
@@ -26,6 +27,10 @@ import hipchatlib
 import models
 import slacklib
 import util
+
+# Set up cloud logging
+logging_client = google.cloud.logging.Client()
+logging_client.setup_logging(log_level=logging.INFO)
 
 # This allows mocking in a different day, for testing.
 _TODAY_FN = datetime.datetime.now
