@@ -409,9 +409,9 @@ def update_snippet_handler():
             return _login_page(flask.request)
 
         if not _logged_in_user_has_permission_for(email):
-            # TODO(csilvers): return a 403 here instead.
-            raise RuntimeError('You do not have permissions to update user'
-                               ' snippets for %s' % email)
+            # TODO(benley): Add a friendlier error page template, maybe?
+            return flask.make_response("You do not have permission to update"
+                                       " user snippets for %s" % email, 403)
 
         update_snippet(email, week, text, private, is_markdown)
         return flask.redirect("/?msg=Snippet+saved&u=%s" % urllib.parse.quote(email))
@@ -426,9 +426,8 @@ def settings_handler():
 
     user_email = flask.request.args.get('u', _current_user_email())
     if not _logged_in_user_has_permission_for(user_email):
-        # TODO(csilvers): return a 403 here instead.
-        raise RuntimeError('You do not have permissions to view user'
-                           ' settings for %s' % user_email)
+        return flask.make_response('You do not have permissions to view user'
+                                   ' settings for %s' % user_email, 403)
     # We won't put() the new user until the settings are saved.
     user = _get_or_create_user(user_email, put_new_user=False)
 
@@ -465,9 +464,8 @@ def update_settings_handler():
 
     user_email = flask.request.args.get('u', _current_user_email())
     if not _logged_in_user_has_permission_for(user_email):
-        # TODO(csilvers): return a 403 here instead.
-        raise RuntimeError('You do not have permissions to modify user'
-                           ' settings for %s' % user_email)
+        return flask.make_response('You do not have permissions to modify user'
+                                   ' settings for %s' % user_email, 403)
     # TODO(csilvers): make this get/update/put atomic (put in a txn)
     user = _get_or_create_user(user_email)
 
