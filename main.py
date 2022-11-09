@@ -560,6 +560,7 @@ def admin_update_settings_handler():
     email_from = flask.request.args.get('email_from')
     hipchat_room = flask.request.args.get('hipchat_room')
     hipchat_token = flask.request.args.get('hipchat_token')
+    hostname = flask.request.args.get('hostname')
     slack_channel = flask.request.args.get('slack_channel')
     slack_token = flask.request.args.get('slack_token')
     slack_slash_token = flask.request.args.get('slack_slash_token')
@@ -568,10 +569,10 @@ def admin_update_settings_handler():
     domains = re.sub(r'\s+', ',', domains)
     domains = [d for d in domains.split(',') if d]
 
-    @ndb.transactional
+    @ndb.transactional()
     def update_settings():
         app_settings = models.AppSettings.get(create_if_missing=True,
-                                                domains=domains)
+                                              domains=domains)
         app_settings.domains = domains
         app_settings.default_private = default_private
         app_settings.default_markdown = default_markdown
@@ -579,6 +580,7 @@ def admin_update_settings_handler():
         app_settings.email_from = email_from
         app_settings.hipchat_room = hipchat_room
         app_settings.hipchat_token = hipchat_token
+        app_settings.hostname = hostname
         app_settings.slack_channel = slack_channel
         app_settings.slack_token = slack_token
         app_settings.slack_slash_token = slack_slash_token
@@ -650,7 +652,7 @@ def admin_manage_users_handler():
         else:
             weeks_since_snippet = None
         user_data.append((user.email, user.is_hidden,
-                            user.created, weeks_since_snippet))
+                          user.created, weeks_since_snippet))
 
     # We have to use 'cmp' here since we want ascending in the
     # primary key and descending in the secondary key, sometimes.
