@@ -539,13 +539,12 @@ def admin_settings_handler():
         'view_week': util.existingsnippet_monday(_TODAY_FN()),
         'redirect_to': flask.request.args.get('redirect_to', ''),
         'settings': app_settings,
-        'slack_slash_commands': (
-            slacklib.command_usage().strip())
+        'slack_slash_commands': slacklib.command_usage().strip()
     }
     return flask.render_template('app_settings.html', **template_values)
 
 
-@app.route("/admin/update_settings")
+@app.route("/admin/update_settings", methods=["POST"])
 def admin_update_settings_handler():
     """Updates the db with modifications from the App-Settings page.
 
@@ -553,17 +552,17 @@ def admin_update_settings_handler():
     """
     _get_or_create_user(_current_user_email())
 
-    domains = flask.request.args.get('domains')
-    default_private = flask.request.args.get('private') == 'yes'
-    default_markdown = flask.request.args.get('markdown') == 'yes'
-    default_email = flask.request.args.get('reminder_email') == 'yes'
-    email_from = flask.request.args.get('email_from')
-    hipchat_room = flask.request.args.get('hipchat_room')
-    hipchat_token = flask.request.args.get('hipchat_token')
-    hostname = flask.request.args.get('hostname')
-    slack_channel = flask.request.args.get('slack_channel')
-    slack_token = flask.request.args.get('slack_token')
-    slack_slash_token = flask.request.args.get('slack_slash_token')
+    domains = flask.request.form.get('domains')
+    default_private = flask.request.form.get('private') == 'yes'
+    default_markdown = flask.request.form.get('markdown') == 'yes'
+    default_email = flask.request.form.get('reminder_email') == 'yes'
+    email_from = flask.request.form.get('email_from')
+    hipchat_room = flask.request.form.get('hipchat_room')
+    hipchat_token = flask.request.form.get('hipchat_token')
+    hostname = flask.request.form.get('hostname')
+    slack_channel = flask.request.form.get('slack_channel')
+    slack_token = flask.request.form.get('slack_token')
+    slack_slash_token = flask.request.form.get('slack_slash_token')
 
     # Turn domains into a list.  Allow whitespace or comma to separate.
     domains = re.sub(r'\s+', ',', domains)
@@ -588,7 +587,7 @@ def admin_update_settings_handler():
 
     update_settings()
 
-    redirect_to = flask.request.args.get('redirect_to')
+    redirect_to = flask.request.form.get('redirect_to')
     if redirect_to == 'user_setting':   # true for new_user.html
         return flask.redirect('/settings?redirect_to=snippet_entry'
                               '&msg=Now+enter+your+personal+user+settings.')
