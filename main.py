@@ -21,7 +21,6 @@ from google.appengine.api import users
 from google.cloud import ndb
 import google.cloud.logging
 import flask
-import jinja2
 
 import hipchatlib
 import models
@@ -683,7 +682,7 @@ def admin_manage_users_handler():
 # The following two classes are called by cron.
 
 
-def _get_email_to_current_snippet_map(today):
+def _get_email_to_current_snippet_map(today: datetime.datetime) -> dict[str, bool]:
     """Return a map from email to True if they've written snippets this week.
 
     Goes through all users registered on the system, and checks if
@@ -734,12 +733,11 @@ def _maybe_send_snippets_mail(to, subject, template_path, template_values):
 
     template_values.setdefault('hostname', app_settings.hostname)
 
-    jinja2_instance = jinja2.get_jinja2()
     mail.send_mail(sender=app_settings.email_from,
                    to=to,
                    subject=subject,
-                   body=jinja2_instance.render_template(template_path,
-                                                        **template_values))
+                   body=flask.render_template(template_path,
+                                              **template_values))
     # Appengine has a quota of 32 emails per minute:
     #    https://developers.google.com/appengine/docs/quotas#Mail
     # We pause 2 seconds between each email to make sure we
@@ -748,14 +746,15 @@ def _maybe_send_snippets_mail(to, subject, template_path, template_values):
 
 
 @app.route("/admin/send_friday_reminder_chat")
-def admin_send_friday_reminder_chat_handler():
+def admin_send_friday_reminder_chat_handler() -> flask.Response:
     """Send a chat message to the configured chat room(s)."""
     msg = 'Reminder: Weekly snippets due Monday at 5pm.'
     _send_to_chat(msg, "/")
+    return flask.make_response({"status": 200, "message": "Sent friday reminder chat"})
 
 
 @app.route("/admin/send_reminder_email")
-def admin_send_reminder_email_handler():
+def admin_send_reminder_email_handler() -> flask.Response:
     """Send an email to everyone who doesn't have a snippet for this week."""
 
     def _send_mail(email):
@@ -774,13 +773,14 @@ def admin_send_reminder_email_handler():
 
     msg = 'Reminder: Weekly snippets due today at 5pm.'
     _send_to_chat(msg, "/")
+    return flask.make_response({"status": 200, "message": "Sent reminder emails"})
 
 
 @app.route("/admin/send_view_email")
-def admin_send_view_email_handler():
+def admin_send_view_email_handler() -> flask.Response:
     """Send an email to everyone to look at the week's snippets."""
 
-    def _send_mail(self, email, has_snippets):
+    def _send_mail(email, has_snippets):
         template_values = {'has_snippets': has_snippets}
         _maybe_send_snippets_mail(email, 'Weekly snippets are ready!',
                                   'view_email.txt', template_values)
@@ -792,6 +792,7 @@ def admin_send_view_email_handler():
 
     msg = 'Weekly snippets are ready!'
     _send_to_chat(msg, "/weekly")
+    return flask.make_response({"status": 200, "message": "Sent 'snippets are ready' emails"})
 
 
 app.add_url_rule("/slack", view_func=slacklib.slash_command_handler,
