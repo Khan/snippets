@@ -374,9 +374,7 @@ def update_snippet_handler():
     elif flask.request.method == "GET":
         data = flask.request.args
 
-    email = data.get('u', _current_user_email())
     week_string = data.get('week')
-    week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
     text = data.get('snippet')
     private = data.get('private') == 'True'
     is_markdown = data.get('is_markdown') == 'True'
@@ -391,28 +389,47 @@ def update_snippet_handler():
         # TODO(marcos): consider using PUT?
 
         if not users.get_current_user():
-            # 403s are the catch-all 'please log in error' here
-            return flask.make_response({"status": 403, "message": "not logged in"}, 403)
+            return flask.make_response({"status": 401, "message": "not logged in"}, 401)
 
+        email = data.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(email):
             # TODO(marcos): present these messages to the ajax client
             error = ('You do not have permissions to update user'
                      ' snippets for %s' % email)
             return flask.make_response({"status": 403, "message": error}, 403)
 
-        update_snippet(email, week, text, private, is_markdown)
+        try:
+            week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
+        except (ValueError, TypeError):
+            return flask.make_response({"status": 400, "message": "Invalid week. Expected format: MM-DD-YYYY"}, 400)
+
+        try:
+            update_snippet(email, week, text, private, is_markdown)
+        except AssertionError as err:
+            return flask.make_response({"status": 400, "message": err}, 400)
+
         return flask.make_response({"status": 200, "message": "ok"})
 
     elif flask.request.method == "GET":
         if not users.get_current_user():
             return _login_page(flask.request)
 
+        email = data.get('u', _current_user_email())
         if not _logged_in_user_has_permission_for(email):
             # TODO(benley): Add a friendlier error page template, maybe?
             return flask.make_response("You do not have permission to update"
                                        " user snippets for %s" % email, 403)
 
-        update_snippet(email, week, text, private, is_markdown)
+        try:
+            week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
+        except (ValueError, TypeError):
+            return flask.make_response("Invalid week. Expected format: MM-DD-YYYY", 400)
+
+        try:
+            update_snippet(email, week, text, private, is_markdown)
+        except AssertionError as err:
+            return flask.make_response("Failed to save snippet: %s" % err, 400)
+
         return flask.redirect("/?msg=Snippet+saved&u=%s" % urllib.parse.quote(email))
 
 

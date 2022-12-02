@@ -387,7 +387,7 @@ def slash_command_handler():
 
     if not expected_token:
         res.write('Slack slash commands disabled. An admin '
-                    'can enable them at /admin/settings')
+                  'can enable them at /admin/settings')
         return
 
     # verify slash API post token for security
