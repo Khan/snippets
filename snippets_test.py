@@ -385,10 +385,10 @@ class NewUserTestCase(UserTestBase):
         continue_url = m.group(1)
         settings_response = self.request_fetcher.get(continue_url)
 
-        self.assertRegexpMatches(settings_response.body,
-                                 r'name="markdown"\s+value="yes"\s+checked')
-        self.assertRegexpMatches(settings_response.body,
-                                 r'name="private"\s+value="yes"\s+checked')
+        self.assertRegex(settings_response.body,
+                         r'name="markdown"\s+value="yes"\s+checked')
+        self.assertRegex(settings_response.body,
+                         r'name="private"\s+value="yes"\s+checked')
 
         # Now change the app-defaults and make sure this is reflected in
         # the new-user setup page.
@@ -401,10 +401,10 @@ class NewUserTestCase(UserTestBase):
         continue_url = m.group(1)
         settings_response = self.request_fetcher.get(continue_url)
 
-        self.assertRegexpMatches(settings_response.body,
-                                 r'name="markdown"\s+value="no"\s+checked')
-        self.assertRegexpMatches(settings_response.body,
-                                 r'name="private"\s+value="no"\s+checked')
+        self.assertRegex(settings_response.body,
+                         r'name="markdown"\s+value="no"\s+checked')
+        self.assertRegex(settings_response.body,
+                         r'name="private"\s+value="no"\s+checked')
 
     def testNewUserInValidDomain(self):
         self.login('newuser@example.com')
@@ -450,12 +450,12 @@ class UserSettingsTestCase(UserTestBase):
     """Test setting and using user settings."""
 
     def assertInputIsChecked(self, name, body, snippet_number):
-        self.assertRegexpMatches(body, r'name="%s" value="True"\s+checked\s*>'
-                                 % name, snippet_number)
+        self.assertRegex(body, r'name="%s" value="True"\s+checked\s*>' % name,
+                         snippet_number)
 
     def assertInputIsNotChecked(self, name, body, snippet_number):
-        self.assertRegexpMatches(body, r'name="%s" value="True"\s*>' % name,
-                                 snippet_number)
+        self.assertRegex(body, r'name="%s" value="True"\s*>' % name,
+                         snippet_number)
 
     def testDefaultUserSettings(self):
         # Make sure the rest of the tests are actually testing
@@ -1418,7 +1418,7 @@ class SendingEmailTestCase(UserTestBase):
         # We'll do 500 users.  Rather than go through the request
         # API, we modify the db directly; it's much faster.
         users = [models.User(email='snippets%d@example.com' % i)
-                 for i in xrange(500)]
+                 for i in range(500)]
         db.put(users)
 
         self.request_fetcher.get('/admin/send_view_email')

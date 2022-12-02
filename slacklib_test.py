@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
+
 
 import datetime
 import textwrap
@@ -175,8 +175,8 @@ class SlashCommandTest(unittest.TestCase):
         r = slacklib.command_add('stuart@khanacademy.org', 'went to the park')
         t = self._most_recent_snippet('stuart@khanacademy.org')
         self.assertIn("Added *went to the park* to your weekly snippets", r)
-        self.assertEquals('- went to the park', t.text)
-        self.assertEquals(True, t.is_markdown)
+        self.assertEqual('- went to the park', t.text)
+        self.assertEqual(True, t.is_markdown)
 
     def testAddCommand_existing(self):
         # on this one, the user markdown formatting gets altered/standardized
@@ -189,7 +189,7 @@ class SlashCommandTest(unittest.TestCase):
             - went to the park
         """).strip()
         self.assertEqual(expected, t.text)
-        self.assertEquals(True, t.is_markdown)
+        self.assertEqual(True, t.is_markdown)
 
     def testAddCommand_existingIsMalformed(self):
         # we should be told we cannot to add to a snippet that is malformed!
@@ -200,7 +200,7 @@ class SlashCommandTest(unittest.TestCase):
         t = self._most_recent_snippet(toby_email)
         self.assertNotIn("went to the park", t.text)
         self.assertIn("LUNCHTIME SUCKERS!", t.text)
-        self.assertEquals(False, t.is_markdown)
+        self.assertEqual(False, t.is_markdown)
 
     def testAddCommand_noArgs(self):
         # we need to handle when they try to add nothing!
@@ -220,7 +220,7 @@ class SlashCommandTest(unittest.TestCase):
         self.assertIn("- ate w/ <@toby>, yay", t.text)
 
     def testAddCommand_unicode(self):
-        r = slacklib.command_add('stuart@khanacademy.org', u'i “like” food')
+        r = slacklib.command_add('stuart@khanacademy.org', 'i “like” food')
         t = self._most_recent_snippet('stuart@khanacademy.org')
         self.assertIn('i “like” food', r)
         self.assertIn('i “like” food', t.text)
@@ -245,7 +245,7 @@ class SlashCommandTest(unittest.TestCase):
             - hoping to sniff more things! #yolo
         """).strip()
         self.assertEqual(expected, t.text)
-        self.assertEquals(True, t.is_markdown)
+        self.assertEqual(True, t.is_markdown)
 
     def testDelCommand_nonexistentIndex(self):
         r1 = slacklib.command_del('stuart@khanacademy.org', ['0'])
@@ -265,7 +265,7 @@ class SlashCommandTest(unittest.TestCase):
         # ...and the existing snippets should not have been touched
         t = self._most_recent_snippet('toby@khanacademy.org')
         self.assertIn("I had fun", t.text)
-        self.assertEquals(False, t.is_markdown)
+        self.assertEqual(False, t.is_markdown)
 
 if __name__ == '__main__':
     unittest.main()
