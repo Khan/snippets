@@ -16,17 +16,7 @@ import os
 import re
 import sys
 import time
-try:   # Work under either python2.5 or python2.7
-    import unittest2 as unittest
-except ImportError:
-    import unittest
-
-# Update sys.path so it can find these.  We just need to add
-# 'google_appengine', but we add all of $PATH to be easy.  This
-# assumes the google_appengine directory is on the path.
-sys.path.extend(os.environ['PATH'].split(':'))
-import dev_appserver
-dev_appserver.fix_sys_path()
+import unittest
 
 from google.appengine.datastore import datastore_stub_util
 from google.appengine.ext import db

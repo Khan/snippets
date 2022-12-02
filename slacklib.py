@@ -41,9 +41,6 @@ _REQUIRE_SLASH_TOKEN = True
 # This allows mocking in a different day, for testing.
 _TODAY_FN = datetime.datetime.now
 
-# The web URL we point people to as the base for web operations
-_WEB_URL = 'http://' + os.environ.get('SERVER_NAME', 'localhost')
-
 
 def _web_api(api_method, payload):
     """Send a payload to the Slack Web API, automatically inserting token.
@@ -57,7 +54,8 @@ def _web_api(api_method, payload):
     app_settings = models.AppSettings.get()
     payload.setdefault('token', app_settings.slack_token)
     uri = 'https://slack.com/api/' + api_method
-    r = urllib.request.urlopen(uri, urllib.parse.urlencode(payload))
+    r = urllib.request.urlopen(uri,
+                               urllib.parse.urlencode(payload).encode('utf-8'))
 
     # check return code for server errors
     if r.getcode() != 200:
@@ -136,19 +134,21 @@ def command_usage():
 
 def command_help():
     """Return the help string for slash commands."""
+    app_settings = models.AppSettings.get()
     return (
         "I can help you manage your "
-        "<{}|weekly snippets>! :pencil:".format(_WEB_URL) +
+        "<{}|weekly snippets>! :pencil:".format(app_settings.hostname) +
         command_usage()
     )
 
 
 def _no_user_error(user_email):
+    app_settings = models.AppSettings.get()
     return (
         "You don't appear to have a snippets account yet!\n"
         "To create one, go to {}\n"
         "We looked for your Slack email address: {}"
-        .format(_WEB_URL, user_email)
+        .format(app_settings.hostname, user_email)
     )
 
 
@@ -381,51 +381,51 @@ def slash_command_handler():
         command=/weather
         text=94070
     """
-    req, res = flask.request, flask.response
+    req = flask.request
 
     expected_token = models.AppSettings.get().slack_slash_token
 
     if not expected_token:
-        res.write('Slack slash commands disabled. An admin '
-                  'can enable them at /admin/settings')
-        return
+        return ('Slack slash commands disabled. An admin '
+                'can enable them at /admin/settings')
 
     # verify slash API post token for security
     if _REQUIRE_SLASH_TOKEN:
-        token = req.get('token')
+        token = req.form.get('token')
         if token != expected_token:
             logging.error("POST MADE WITH INVALID TOKEN")
-            res.write("OH NO YOU DIDNT! Security issue plz contact admin.")
-            return
+            return "OH NO YOU DIDNT! Security issue plz contact admin."
 
 
-    user_name = req.get('user_name')
-    user_id = req.get('user_id')
-    text = req.get('text')
+    user_name = req.form.get('user_name')
+    user_id = req.form.get('user_id')
+    text = req.form.get('text')
 
     try:
         user_email = _get_user_email_cached(user_id)
-    except ValueError:
-        logging.error("Failed getting %s email from Slack API", user_name)
-        res.write(
+    except ValueError as err:
+        logging.error(
+            "Failed getting email from Slack API for username '%s': %s",
+            user_name, err
+        )
+        return (
             "Error getting your email address from the Slack API! "
             "Please contact an admin and report the time of this error."
         )
-        return
 
     words = text.strip().split()
     if not words:
         logging.info('null (list) command from user %s', user_name)
-        res.write(command_list(user_email))
+        return command_list(user_email)
     else:
         cmd, args = words[0], words[1:]
         if cmd == 'help':
             logging.info('help command from user %s', user_name)
-            res.write(command_help())
+            return command_help()
         elif cmd == 'whoami':
             # undocumented command to echo user email back
             logging.info('whoami command from user %s', user_name)
-            res.write(user_email)
+            return user_email
         elif cmd == 'whoami!':
             # whoami! forces a refresh of cache, for debugging
             logging.info('whoami! command from user %s', user_name)
@@ -434,26 +434,26 @@ def slash_command_handler():
             refreshed = _get_user_email_cached(user_id, force_refresh=True)
             logging.info('whoami! refreshed email for %s: %s',
                             user_name, refreshed)
-            res.write(refreshed)
+            return refreshed
         elif cmd == 'list':
             # this is the same as the null command, but support for UX
             logging.info('list command from user %s', user_name)
-            res.write(command_list(user_email))
+            return command_list(user_email)
         elif cmd == 'last':
             logging.info('last command from user %s', user_name)
-            res.write(command_last(user_email))
+            return command_last(user_email)
         elif cmd == 'add':
             logging.info('add command from user %s', user_name)
-            res.write(command_add(user_email, " ".join(args)))
+            return command_add(user_email, " ".join(args))
         elif cmd == 'del':
             logging.info('del command from user %s', user_name)
-            res.write(command_del(user_email, args))
+            return command_del(user_email, args)
         elif cmd == 'dump':
             logging.info('dump command from user %s', user_name)
-            res.write(command_dump(user_email))
+            return command_dump(user_email)
         else:
             logging.info('unknown command %s from user %s', cmd, user_name)
-            res.write(
+            return (
                 "I don't understand what you said! "
                 "Perhaps you meant one of these?\n```%s```\n"
                 % command_usage()

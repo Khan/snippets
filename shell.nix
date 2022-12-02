@@ -56,8 +56,6 @@ let
           super.pytz
           super.frozendict
           super.ruamel-yaml
-        ];
-        buildInputs = [
           super.mock
         ];
       };
