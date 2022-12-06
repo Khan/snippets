@@ -25,15 +25,16 @@ class User(ndb.Model):
     """User preferences."""
     created = ndb.DateTimeProperty()
     last_modified = ndb.DateTimeProperty(auto_now=True)
-    email = ndb.StringProperty(required=True)           # The key to this record
-    is_hidden = ndb.BooleanProperty(default=False)      # hide 'empty' snippets
-    category = ndb.StringProperty(default=NULL_CATEGORY)  # groups snippets
-    uses_markdown = ndb.BooleanProperty(default=True)  # interpret snippet text
+    email = ndb.StringProperty(required=True)              # The key to this record
+    is_hidden = ndb.BooleanProperty(default=False)         # hide 'empty' snippets
+    category = ndb.StringProperty(default=NULL_CATEGORY)   # groups snippets
+    uses_markdown = ndb.BooleanProperty(default=True)      # interpret snippet text
     private_snippets = ndb.BooleanProperty(default=False)  # private by default?
-    wants_email = ndb.BooleanProperty(default=True)     # get nag emails?
+    wants_email = ndb.BooleanProperty(default=True)        # get nag emails?
     # TODO(csilvers): make a ListProperty instead.
-    wants_to_view = ndb.TextProperty(default='all')     # comma-separated list
-    display_name = ndb.TextProperty(default='')         #  display name of the user
+    wants_to_view = ndb.TextProperty(default='all')        # comma-separated list
+    display_name = ndb.TextProperty(default='')            # display name of the user
+    slack_id = ndb.StringProperty(default='')              # Slack member ID associated with this user
 
 
 class Snippet(ndb.Model):

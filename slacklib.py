@@ -142,14 +142,12 @@ def command_help():
     )
 
 
-def _no_user_error(user_email):
+def _no_user_error(user_id):
     app_settings = models.AppSettings.get()
-    return (
-        "You don't appear to have a snippets account yet!\n"
-        "To create one, go to {}\n"
-        "We looked for your Slack email address: {}"
-        .format(app_settings.hostname, user_email)
-    )
+
+    return (f"You don't seem to be logged in!  Please configure your slack "
+            f"user ID (which is `{user_id}`) in the snippets server's "
+            f"settings page: {app_settings.hostname}/settings")
 
 
 def _user_snippet(user_email, weeks_back=0):
@@ -215,7 +213,7 @@ def _format_snippet_items(items):
     return "\n".join(fi)
 
 
-def command_list(user_email):
+def command_list(user_email: str) -> str:
     """Return the users current snippets for the week in pretty format."""
     try:
         items = _snippet_items(_user_snippet(user_email))
@@ -238,7 +236,7 @@ def command_list(user_email):
     return textwrap.dedent(
         "*Your snippets for the week so far:*\n" +
         _format_snippet_items(items)
-    )
+)
 
 
 def command_last(user_email):
@@ -366,6 +364,10 @@ def command_dump(user_email):
     return "```{}```".format(snippet.text or 'No snippet yet for this week')
 
 
+def get_user_by_slack_id(slack_id: str) -> models.User:
+    return models.User.query(models.User.slack_id == slack_id).get()
+
+
 def slash_command_handler():
     """Process an incoming slash command from Slack.
 
@@ -383,7 +385,8 @@ def slash_command_handler():
     """
     req = flask.request
 
-    expected_token = models.AppSettings.get().slack_slash_token
+    app_settings = models.AppSettings.get()
+    expected_token = app_settings.slack_slash_token
 
     if not expected_token:
         return ('Slack slash commands disabled. An admin '
@@ -396,27 +399,19 @@ def slash_command_handler():
             logging.error("POST MADE WITH INVALID TOKEN")
             return "OH NO YOU DIDNT! Security issue plz contact admin."
 
-
     user_name = req.form.get('user_name')
     user_id = req.form.get('user_id')
     text = req.form.get('text')
 
-    try:
-        user_email = _get_user_email_cached(user_id)
-    except ValueError as err:
-        logging.error(
-            "Failed getting email from Slack API for username '%s': %s",
-            user_name, err
-        )
-        return (
-            "Error getting your email address from the Slack API! "
-            "Please contact an admin and report the time of this error."
-        )
+    user = get_user_by_slack_id(user_id)
+    if user is None:
+        logging.info("Slack command from unrecognized user_id: %s", user_id)
+        return _no_user_error(user_id)
 
     words = text.strip().split()
     if not words:
         logging.info('null (list) command from user %s', user_name)
-        return command_list(user_email)
+        return command_list(user.email)
     else:
         cmd, args = words[0], words[1:]
         if cmd == 'help':
@@ -425,32 +420,23 @@ def slash_command_handler():
         elif cmd == 'whoami':
             # undocumented command to echo user email back
             logging.info('whoami command from user %s', user_name)
-            return user_email
-        elif cmd == 'whoami!':
-            # whoami! forces a refresh of cache, for debugging
-            logging.info('whoami! command from user %s', user_name)
-            logging.info('whoami! potential cached email for %s: %s',
-                            user_name, user_email)
-            refreshed = _get_user_email_cached(user_id, force_refresh=True)
-            logging.info('whoami! refreshed email for %s: %s',
-                            user_name, refreshed)
-            return refreshed
+            return user.email
         elif cmd == 'list':
             # this is the same as the null command, but support for UX
             logging.info('list command from user %s', user_name)
-            return command_list(user_email)
+            return command_list(user.email)
         elif cmd == 'last':
             logging.info('last command from user %s', user_name)
-            return command_last(user_email)
+            return command_last(user.email)
         elif cmd == 'add':
             logging.info('add command from user %s', user_name)
-            return command_add(user_email, " ".join(args))
+            return command_add(user.email, " ".join(args))
         elif cmd == 'del':
             logging.info('del command from user %s', user_name)
-            return command_del(user_email, args)
+            return command_del(user.email, args)
         elif cmd == 'dump':
             logging.info('dump command from user %s', user_name)
-            return command_dump(user_email)
+            return command_dump(user.email)
         else:
             logging.info('unknown command %s from user %s', cmd, user_name)
             return (

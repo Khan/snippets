@@ -4,12 +4,12 @@ from models import Snippet
 from models import User
 
 # Functions for retrieving a user
-def get_user(email: str):
+def get_user(email: str) -> User:
     """Return the user object with the given email, or None if not found."""
     return User.query(User.email == email).get()
 
 
-def get_user_or_die(email: str):
+def get_user_or_die(email: str) -> User:
     user = get_user(email)
     if not user:
         raise ValueError('User "%s" not found' % email)

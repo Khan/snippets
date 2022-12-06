@@ -500,6 +500,7 @@ def update_settings_handler():
 
     display_name = flask.request.args.get('display_name')
     category = flask.request.args.get('category')
+    slack_id = flask.request.args.get('slack_id')
     uses_markdown = flask.request.args.get('markdown') == 'yes'
     private_snippets = flask.request.args.get('private') == 'yes'
     wants_email = flask.request.args.get('reminder_email') == 'yes'
@@ -520,6 +521,7 @@ def update_settings_handler():
     user.is_hidden = is_hidden
     user.display_name = display_name
     user.category = category or models.NULL_CATEGORY
+    user.slack_id = slack_id
     user.uses_markdown = uses_markdown
     user.private_snippets = private_snippets
     user.wants_email = wants_email
