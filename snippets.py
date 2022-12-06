@@ -27,9 +27,11 @@ import models
 import slacklib
 import util
 
-# Set up cloud logging
-logging_client = google.cloud.logging.Client()
-logging_client.setup_logging(log_level=logging.INFO)
+if os.getenv("GAE_ENV", "").startswith("standard"):
+    # We're running in the real appengine environment, hopefully.
+    # Set up cloud logging
+    logging_client = google.cloud.logging.Client()
+    logging_client.setup_logging(log_level=logging.INFO)
 
 # This allows mocking in a different day, for testing.
 _TODAY_FN = datetime.datetime.now
