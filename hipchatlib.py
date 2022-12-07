@@ -64,4 +64,4 @@ def send_to_hipchat_room(room_name, message):
 def test_send_to_hipchat_handler():
     """Send a (fixed) message to the hipchat room."""
     send_to_hipchat_room('HipChat Tests', 'Test of snippets-to-hipchat')
-    flask.response.out.write('OK')
+    return "OK"
