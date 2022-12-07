@@ -8,7 +8,7 @@ $(function() {
         if ($inputButton.value === "Hide") {
             $inputButton.value = "Hiding...";
             $inputButton.disabled = true;
-            $.ajax("/admin/manage_users?hide%20" + email)
+            $.post("/admin/manage_users", {action: "hide", email: email})
                 .then(function() {
                     $inputButton.name = "unhide " + email;
                     $inputButton.value = "Unhide";
@@ -20,7 +20,7 @@ $(function() {
         } else {
             $inputButton.value = "Unhiding...";
             $inputButton.disabled = true;
-            $.ajax("/admin/manage_users?unhide%20" + email)
+            $.post("/admin/manage_users", {action: "unhide", email: email})
                 .then(function() {
                     $inputButton.name = "hide " + email;
                     $inputButton.value = "Hide";
@@ -37,7 +37,7 @@ $(function() {
         var email = $($inputButton).attr("data-email");
         $inputButton.value = "Deleting...";
         $inputButton.disabled = true;
-        $.ajax("/admin/manage_users?delete%20" + email)
+        $.post("/admin/manage_users", {action: "delete", email: email})
             .then(function() {
                 $inputButton.value = "Deleted";
                 // TODO(csilvers): change the whole row to indicate deleted

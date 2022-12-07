@@ -618,39 +618,41 @@ def cmp(a, b):
     return (a > b) - (a < b)
 
 
-@app.route("/admin/manage_users")
+@app.route("/admin/manage_users", methods=["GET", "POST"])
 def admin_manage_users_handler():
     """Lets admins delete and otherwise manage users."""
     # options are 'email', 'creation_time', 'last_snippet_time'
     sort_by = flask.request.args.get('sort_by', 'creation_time')
 
     # First, check if the user had clicked on a button.
-    for name, value in flask.request.form.items():
-        if name.startswith('hide '):
-            email_of_user_to_hide = name[len('hide '):]
-            # TODO(csilvers): move this get/update/put atomic into a txn
-            user = util.get_user_or_die(email_of_user_to_hide)
-            user.is_hidden = True
-            user.put()
-            time.sleep(0.1)   # encourage eventual consistency
-            return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+hidden'
-                                  % (sort_by, email_of_user_to_hide))
-        if name.startswith('unhide '):
-            email_of_user_to_unhide = name[len('unhide '):]
-            # TODO(csilvers): move this get/update/put atomic into a txn
-            user = util.get_user_or_die(email_of_user_to_unhide)
-            user.is_hidden = False
-            user.put()
-            time.sleep(0.1)   # encourage eventual consistency
-            return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+unhidden'
-                                  % (sort_by, email_of_user_to_unhide))
-        if name.startswith('delete '):
-            email_of_user_to_delete = name[len('delete '):]
-            user = util.get_user_or_die(email_of_user_to_delete)
-            user.delete()
-            time.sleep(0.1)   # encourage eventual consistency
-            return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+deleted'
-                                  % (sort_by, email_of_user_to_delete))
+    if flask.request.form.get("action") == "hide":
+        email_of_user_to_hide = flask.request.form.get("email")
+        # TODO(csilvers): move this get/update/put atomic into a txn
+        user = util.get_user_or_die(email_of_user_to_hide)
+        user.is_hidden = True
+        user.put()
+        time.sleep(0.1)   # encourage eventual consistency
+        logging.info("Hide user: %s", user.email)
+        return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+hidden'
+                              % (sort_by, user.email))
+    elif flask.request.form.get("action") == "unhide":
+        email_of_user_to_unhide = flask.request.form.get("email")
+        # TODO(csilvers): move this get/update/put atomic into a txn
+        user = util.get_user_or_die(email_of_user_to_unhide)
+        user.is_hidden = False
+        user.put()
+        logging.info("Unhide user: %s", user.email)
+        time.sleep(0.1)   # encourage eventual consistency
+        return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+unhidden'
+                              % (sort_by, user.email))
+    elif flask.request.form.get("action") == "delete":
+        email_of_user_to_delete = flask.request.form.get("email")
+        user = util.get_user_or_die(email_of_user_to_delete)
+        user.delete()
+        logging.info("Delete user: %s", user.email)
+        time.sleep(0.1)   # encourage eventual consistency
+        return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+deleted'
+                              % (sort_by, user.email))
 
     user_q = models.User.query()
     results = user_q.fetch(1000)
