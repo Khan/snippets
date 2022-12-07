@@ -2,6 +2,15 @@ runtime: python310
 default_expiration: "365d"
 app_engine_apis: true
 
+# Slack has a very short timeout on API callbacks, so we need to keep at least 1
+# process running for it
+automatic_scaling:
+  min_instances: 1
+
+# min_instances requires warmup requests to work
+inbound_services:
+  - warmup
+
 handlers:
 - url: /static
   static_dir: static

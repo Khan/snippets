@@ -818,6 +818,15 @@ def admin_send_view_email_handler() -> flask.Response:
     return flask.make_response({"status": 200, "message": "Sent 'snippets are ready' emails"})
 
 
+@app.route('/_ah/warmup')
+def warmup():
+    """App engine warmup requests handler
+
+    See https://cloud.google.com/appengine/docs/standard/configuring-warmup-requests?tab=python
+    """
+    return "OK", 200, {}
+
+
 app.add_url_rule("/slack", view_func=slacklib.slash_command_handler,
                  methods=["POST"])
 app.add_url_rule("/admin/test_send_to_hipchat",
