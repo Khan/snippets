@@ -68,40 +68,6 @@ def _web_api(api_method, payload):
     return reply
 
 
-def _get_user_email(uid):
-    """Retrieve the email address for a specific userid from the Slack Web API.
-
-    Raises ValueError if could not be retrieved.
-    """
-    reply = _web_api('users.info', {'user': uid})  # possible ValueError
-    email = reply.get('user', {}).get('profile', {}).get('email', None)
-    if email is None:
-        raise ValueError('Slack user profile did not have email')
-    return email
-
-
-def _get_user_email_cached(uid, force_refresh=False):
-    """Retrieve the email address for a specific user id, with a cache.
-
-    Results are stored in memcache for up to a day.
-
-    If force_refresh parameter is specified, cached data will be refreshed.
-
-    Raises ValueError if could not be retrieved.
-    """
-    key = 'slack_profile_email_' + uid
-    cached_data = memcache.get(key)
-    if (cached_data is None) or force_refresh:
-        logging.debug("cache miss/refresh for slack email lookup %s", uid)
-        email = _get_user_email(uid)  # possible ValueError
-        if not memcache.set(key=key, value=email, time=86400):
-            logging.error('memcache set failed!')
-        return email
-    else:
-        logging.debug("cache hit for slack email lookup %s", uid)
-        return cached_data
-
-
 def send_to_slack_channel(channel, msg):
     """Send a plaintext message to a Slack channel."""
     try:
