@@ -14,7 +14,7 @@ import logging
 import os
 import re
 import time
-import urllib
+import urllib.parse
 
 from google.appengine.api import mail, wrap_wsgi_app
 from google.appengine.api import users
@@ -91,6 +91,7 @@ def _get_or_create_user(email, put_new_user=True):
             # TODO(csilvers): move this get/update/put atomic into a txn
             user.is_hidden = False
             user.put()
+        return user
     elif not _logged_in_user_has_permission_for(email):
         # TODO(csilvers): turn this into a 403 somewhere
         raise IndexError('User "%s" not found; did you specify'
@@ -123,7 +124,7 @@ def _get_or_create_user(email, put_new_user=True):
         if put_new_user:
             user.put()
             user.key.get()  # ensure db consistency for HRD
-    return user
+        return user
 
 
 def _logged_in_user_has_permission_for(email):
@@ -231,8 +232,8 @@ def user_page_handler():
 
 def _title_case(s):
     """Like string.title(), but does not uppercase 'and'."""
-    # Smarter would be to use 'pip install titlecase'.
-    SMALL = 'a|an|and|as|at|but|by|en|for|if|in|of|on|or|the|to|v\.?|via|vs\.?'
+    # TODO(benley): use titlecase from pypi?
+    SMALL = r'a|an|and|as|at|but|by|en|for|if|in|of|on|or|the|to|v\.?|via|vs\.?'
     # We purposefully don't match small words at the beginning of a string.
     SMALL_RE = re.compile(r' (%s)\b' % SMALL, re.I)
     return SMALL_RE.sub(lambda m: ' ' + m.group(1).lower(), s.title().strip())
@@ -373,11 +374,11 @@ def update_snippet_handler():
 
     if flask.request.method == "POST":
         data = flask.request.form
-    elif flask.request.method == "GET":
+    else:
         data = flask.request.args
 
-    week_string = data.get('week')
-    text = data.get('snippet')
+    week_string = data.get('week', '')
+    text = data.get('snippet', '')
     private = data.get('private') == 'True'
     is_markdown = data.get('is_markdown') == 'True'
 
@@ -412,7 +413,7 @@ def update_snippet_handler():
 
         return flask.make_response({"status": 200, "message": "ok"})
 
-    elif flask.request.method == "GET":
+    else:  # flask.request.method == "GET"
         if not users.get_current_user():
             return _login_page(flask.request)
 

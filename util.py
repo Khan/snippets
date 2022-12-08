@@ -4,7 +4,7 @@ from models import Snippet
 from models import User
 
 # Functions for retrieving a user
-def get_user(email: str) -> User:
+def get_user(email: str) -> User | None:
     """Return the user object with the given email, or None if not found."""
     return User.query(User.email == email).get()
 
