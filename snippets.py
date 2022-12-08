@@ -123,7 +123,6 @@ def _get_or_create_user(email, put_new_user=True):
                            wants_email=app_settings.default_email)
         if put_new_user:
             user.put()
-            user.key.get()  # ensure db consistency for HRD
         return user
 
 
@@ -366,7 +365,6 @@ def update_snippet(email: str,
                                  text=text, private=private,
                                  is_markdown=is_markdown)
     snippet.put()
-    snippet.key.get()  # ensure db consistency for HRD
 
 
 @app.route("/update_snippet", methods=["POST", "GET"])
@@ -493,7 +491,6 @@ def update_settings_handler():
     if flask.request.args.get('hide'):
         user.is_hidden = True
         user.put()
-        time.sleep(0.1)   # some time for eventual consistency
         return flask.redirect('/weekly?msg=You+are+now+hidden.+Have+a+nice+day!')
     elif flask.request.args.get('delete'):
         user.delete()
@@ -510,7 +507,7 @@ def update_settings_handler():
 
     # We want this list to be comma-separated, but people are
     # likely to use whitespace to separate as well.  Convert here.
-    wants_to_view = flask.request.args.get('to_view')
+    wants_to_view = flask.request.args.get('to_view', '')
     wants_to_view = re.sub(r'\s+', ',', wants_to_view)
     wants_to_view = wants_to_view.split(',')
     wants_to_view = [w for w in wants_to_view if w]   # deal with ',,'
@@ -530,7 +527,6 @@ def update_settings_handler():
     user.wants_email = wants_email
     user.wants_to_view = wants_to_view
     user.put()
-    user.key.get()  # ensure db consistency for HRD
 
     redirect_to = flask.request.args.get('redirect_to')
     if redirect_to == 'snippet_entry':   # true for new_user.html
@@ -632,7 +628,6 @@ def admin_manage_users_handler():
         user = util.get_user_or_die(email_of_user_to_hide)
         user.is_hidden = True
         user.put()
-        time.sleep(0.1)   # encourage eventual consistency
         logging.info("Hide user: %s", user.email)
         return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+hidden'
                               % (sort_by, user.email))
@@ -643,7 +638,6 @@ def admin_manage_users_handler():
         user.is_hidden = False
         user.put()
         logging.info("Unhide user: %s", user.email)
-        time.sleep(0.1)   # encourage eventual consistency
         return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+unhidden'
                               % (sort_by, user.email))
     elif flask.request.form.get("action") == "delete":
@@ -651,7 +645,6 @@ def admin_manage_users_handler():
         user = util.get_user_or_die(email_of_user_to_delete)
         user.delete()
         logging.info("Delete user: %s", user.email)
-        time.sleep(0.1)   # encourage eventual consistency
         return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+deleted'
                               % (sort_by, user.email))
 

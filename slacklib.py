@@ -268,7 +268,6 @@ def command_add(user_email, new_item):
 
     # TODO(mroth): we should abstract out DB writes to a library wrapper
     snippet.put()
-    snippet.key.get()    # ensure db consistency for HRD
     return "Added *{}* to your weekly snippets.".format(new_item)
 
 
@@ -317,7 +316,6 @@ def command_del(user_email, args):
     snippet.is_markdown = True
 
     snippet.put()
-    snippet.key.get()    # ensure db consistency for HRD
     return "Removed *{}* from your weekly snippets.".format(removed_item)
 
 
