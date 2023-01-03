@@ -16,7 +16,7 @@ import re
 import time
 import urllib.parse
 
-from google.appengine.api import mail, wrap_wsgi_app
+from google.appengine.api import mail
 from google.appengine.api import users
 from google.cloud import ndb
 import google.cloud.logging

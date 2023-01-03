@@ -61,9 +61,12 @@ class SnippetsTestBase(unittest.TestCase):
         slacklib.send_to_slack_channel = self.old_send_to_slack_channel
 
     def login(self, email):
-        self.testbed.setup_env(user_email=email, overwrite=True)
-        self.testbed.setup_env(user_id=email, overwrite=True)
-        self.testbed.setup_env(user_is_admin='0', overwrite=True)
+        self.testbed.setup_env(
+            user_email=email,
+            user_id=email,
+            user_is_admin='0',
+            overwrite=True
+        )
         # Now make sure there are global settings.
         settings = models.AppSettings.get(
             create_if_missing=True,

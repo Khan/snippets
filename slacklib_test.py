@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
 import datetime
 import textwrap
 import unittest
+from zoneinfo import ZoneInfo
 
-from google.cloud import ndb
 from google.appengine.ext import testbed
+import time_machine
 
 import models
 import slacklib
@@ -15,9 +15,27 @@ import slacklib
 
 class SlashCommandTest(unittest.TestCase):
 
-    def _mock_data(self):
+    def setUp(self):
+        self.testbed = testbed.Testbed()
+        self.testbed.activate()
+        self.testbed.init_user_stub()
+
         # The fictional day for these tests Wednesday, July 29, 2015
-        slacklib._TODAY_FN = lambda: datetime.datetime(2015, 7, 29)
+        self.traveller = time_machine.travel(
+            datetime.datetime(2015, 7, 29, tzinfo=ZoneInfo("UTC")))
+        self.traveller.start()
+
+        self.testbed.setup_env(
+            user_email="bob@example.com",
+            user_id="bob@example.com",
+            user_is_admin='0',
+            overwrite=True
+        )
+        appsettings = models.AppSettings.get(
+            create_if_missing=True,
+            domains=["khanacademy.org"],
+        )
+        appsettings.put()
 
         # Stuart created his account, but has never once filled out a snippet
         models.User(email='stuart@khanacademy.org').put()
@@ -89,14 +107,8 @@ class SlashCommandTest(unittest.TestCase):
         ).order('-week')  # newest snippet first
         return snippets_q.fetch(1)[0]
 
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-        self.testbed.init_memcache_stub()
-        self._mock_data()
-
     def tearDown(self):
+        self.traveller.stop()
         self.testbed.deactivate()
 
     def testDumpCommand_empty(self):
@@ -112,8 +124,8 @@ class SlashCommandTest(unittest.TestCase):
     def testDumpCommand_noAccount(self):
         # user without an account should get a helpful error message
         response = slacklib.command_dump('bob@bob.com')
-        self.assertIn("You don't appear to have a snippets account", response)
-        self.assertIn("Slack email address: bob@bob.com", response)
+        self.assertIn("You don't seem to be logged in!", response)
+        self.assertIn("bob@bob.com", response)
 
     def testListCommand_empty(self):
         # user without a recent snippet should get a helpful message
@@ -134,7 +146,7 @@ class SlashCommandTest(unittest.TestCase):
     def testListCommand_noAccount(self):
         # user without an account should get a helpful error message
         response = slacklib.command_list('bob@bob.com')
-        self.assertIn("You don't appear to have a snippets account", response)
+        self.assertIn("You don't seem to be logged in!", response)
 
     def testLastCommand_empty(self):
         # user without a snippet last week should get a helpful message
@@ -152,7 +164,7 @@ class SlashCommandTest(unittest.TestCase):
     def testLastCommand_noAccount(self):
         # user without an account should get a helpful error message
         response = slacklib.command_last('bob@bob.com')
-        self.assertIn("You don't appear to have a snippets account", response)
+        self.assertIn("You don't seem to be logged in!", response)
 
     def testBadMarkdown_listCommand(self):
         toby_recent = slacklib.command_list('toby@khanacademy.org')
@@ -202,7 +214,7 @@ class SlashCommandTest(unittest.TestCase):
     def testAddCommand_noAccount(self):
         # dont crash horribly if user doesnt exist
         r = slacklib.command_add('bob@bob.com', 'how is account formed?')
-        self.assertIn("You don't appear to have a snippets account", r)
+        self.assertIn("You don't seem to be logged in!", r)
 
     def testAddCommand_markupUsernames(self):
         # usernames should be marked up properly so they get syntax highlighted
@@ -225,7 +237,7 @@ class SlashCommandTest(unittest.TestCase):
     def testDelCommand_noAccount(self):
         # dont crash horribly if user doesnt exist
         r = slacklib.command_del('bob@bob.com', ['1'])
-        self.assertIn("You don't appear to have a snippets account", r)
+        self.assertIn("You don't seem to be logged in!", r)
 
     def testDelCommand_normalCase(self):
         r = slacklib.command_del('fleetwood@khanacademy.org', ['1'])

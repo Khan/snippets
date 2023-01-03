@@ -35,7 +35,7 @@ def most_recent_snippet_for_user(user_email):
 
 
 # Functions around filling in snippets
-def newsnippet_monday(today):
+def newsnippet_monday(today: datetime.datetime) -> datetime.date:
     """Return a datetime.date object: the monday for new snippets.
 
     We just return the monday for this week.  Saturday and Sunday
@@ -61,7 +61,7 @@ def newsnippet_monday(today):
     return end_monday.date()
 
 
-def existingsnippet_monday(today):
+def existingsnippet_monday(today: datetime.datetime) -> datetime.date:
     """Return a datetime.date object: the monday for existing snippets.
 
     The rule is that we show the snippets for the previous week.  We

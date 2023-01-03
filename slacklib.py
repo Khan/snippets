@@ -18,7 +18,6 @@ we get that from /admin/settings as well.
 import datetime
 import json
 import logging
-import os
 import re
 import textwrap
 import urllib.error
@@ -26,7 +25,6 @@ import urllib.parse
 import urllib.request
 
 import flask
-from google.appengine.api import memcache
 
 import models
 import util
@@ -109,11 +107,16 @@ def command_help():
 
 
 def _no_user_error(user_id):
-    app_settings = models.AppSettings.get()
-
-    return (f"You don't seem to be logged in!  Please configure your slack "
-            f"user ID (which is `{user_id}`) in the snippets server's "
-            f"settings page: {app_settings.hostname}/settings")
+    try:
+        app_settings = models.AppSettings.get()
+        return (f"You don't seem to be logged in!  Please configure your slack "
+                f"user ID (which is `{user_id}`) in the snippets server's "
+                f"settings page: {app_settings.hostname}/settings")
+    except ValueError:
+        return (
+            "You don't seem to be logged in, and this snippets server is "
+            "unconfigured!  Please ask your snippets admin to set it up "
+            "before trying again.")
 
 
 def _user_snippet(user_email, weeks_back=0):

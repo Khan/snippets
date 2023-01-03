@@ -85,6 +85,7 @@ let
     ps.flask
     ps.pytest
     ps.google-cloud-datastore-stub
+    ps.time-machine
   ]);
 
 

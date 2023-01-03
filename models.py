@@ -23,7 +23,7 @@ NULL_CATEGORY = '(unknown)'
 
 class User(ndb.Model):
     """User preferences."""
-    created = ndb.DateTimeProperty()
+    created = ndb.DateTimeProperty(auto_now_add=True)
     last_modified = ndb.DateTimeProperty(auto_now=True)
     email = ndb.StringProperty(required=True)              # The key to this record
     is_hidden = ndb.BooleanProperty(default=False)         # hide 'empty' snippets
@@ -39,7 +39,7 @@ class User(ndb.Model):
 
 class Snippet(ndb.Model):
     """Every snippet is identified by the monday of the week it goes with."""
-    created = ndb.DateTimeProperty()
+    created = ndb.DateTimeProperty(auto_now_add=True)
     last_modified = ndb.DateTimeProperty(auto_now=True)
     display_name = ndb.StringProperty()        # display name of the user
     email = ndb.StringProperty(required=True)  # week+email: key to this record
@@ -57,7 +57,7 @@ class Snippet(ndb.Model):
 
 class AppSettings(ndb.Model):
     """Application-wide preferences."""
-    created = ndb.DateTimeProperty()
+    created = ndb.DateTimeProperty(auto_now_add=True)
     last_modified = ndb.DateTimeProperty(auto_now=True)
     # Application settings
     domains = ndb.StringProperty(repeated=True)
