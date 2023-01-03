@@ -96,7 +96,7 @@ class AppSettings(ndb.Model):
             # you accessed the site on here.
             hostname = '%s://%s' % (os.environ.get('wsgi.url_scheme', 'http'),
                                     os.environ['HTTP_HOST'])
-            return AppSettings(key_name='global_settings',
+            return AppSettings(id='global_settings',
                                created=datetime.datetime.now(),
                                domains=domains,
                                hostname=hostname,

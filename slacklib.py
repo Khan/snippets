@@ -271,7 +271,7 @@ def command_add(user_email, new_item):
     return "Added *{}* to your weekly snippets.".format(new_item)
 
 
-def command_del(user_email, args):
+def command_del(user_email, args) -> str:
     """Delete an item at an index from the users current snippets.
 
     The `args` parameter should be the args passed to the command.  We
@@ -332,7 +332,7 @@ def get_user_by_slack_id(slack_id: str) -> models.User:
     return models.User.query(models.User.slack_id == slack_id).get()
 
 
-def slash_command_handler():
+def slash_command_handler() -> str:
     """Process an incoming slash command from Slack.
 
     Incoming request POST looks like the following (example taken from
@@ -384,7 +384,7 @@ def slash_command_handler():
         elif cmd == 'whoami':
             # undocumented command to echo user email back
             logging.info('whoami command from user %s', user_name)
-            return user.email
+            return str(user.email)
         elif cmd == 'list':
             # this is the same as the null command, but support for UX
             logging.info('list command from user %s', user_name)

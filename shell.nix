@@ -4,6 +4,21 @@ let
   python = pkgs.python310.override {
     packageOverrides = self: super: {
 
+      google-cloud-datastore-stub = super.buildPythonPackage rec {
+        pname = "InMemoryCloudDatastoreStub";
+        version = "0.0.15";
+        src = super.fetchPypi {
+          inherit pname version;
+          sha256 = "sha256-nuJNhnlXSbAg6CdWW8u7rGDDd07FvLNRtsTfzUBh7bE=";
+        };
+        propagatedBuildInputs = [
+          self.google-cloud-ndb
+        ];
+        buildInputs = [
+          super.pytest
+        ];
+      };
+
       google-cloud-ndb = super.buildPythonPackage rec {
         pname = "google-cloud-ndb";
         version = "1.11.1";
@@ -68,11 +83,14 @@ let
     ps.google-cloud-ndb
     ps.appengine-python-standard
     ps.flask
+    ps.pytest
+    ps.google-cloud-datastore-stub
   ]);
 
 
 in pkgs.mkShell {
   buildInputs = with pkgs; [
+    nodePackages.pyright
     pythonEnv
     # google-app-engine-go-sdk  # dev_appserver.py is in here for some reason
     (google-cloud-sdk.withExtraComponents ([

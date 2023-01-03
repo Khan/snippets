@@ -2,7 +2,25 @@
 
 import snippets
 
+from google.cloud import ndb
+
+
 app = snippets.app
+
+
+class NDBMiddleware:
+    """WSGI middleware to wrap the app in Google Cloud NDB context"""
+    def __init__(self, app):
+        self.app = app
+        self.client = ndb.Client()
+        self.app.ndb_context = self.client.context()
+
+    def __call__(self, environ, start_response):
+        with self.app.ndb_context:
+            return self.app(environ, start_response)
+
+app.wsgi_app = NDBMiddleware(app.wsgi_app)
+
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App

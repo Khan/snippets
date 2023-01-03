@@ -37,20 +37,6 @@ if os.getenv("GAE_ENV", "").startswith("standard"):
 _TODAY_FN = datetime.datetime.now
 
 app = flask.Flask(__name__)
-app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
-
-
-class NDBMiddleware:
-    """WSGI middleware to wrap the app in Google Cloud NDB context"""
-    def __init__(self, app):
-        self.app = app
-        self.client = ndb.Client()
-
-    def __call__(self, environ, start_response):
-        with self.client.context():
-            return self.app(environ, start_response)
-
-app.wsgi_app = NDBMiddleware(app.wsgi_app)
 
 
 @app.template_filter("readable_date")
@@ -97,7 +83,6 @@ def _get_or_create_user(email, put_new_user=True):
         raise IndexError('User "%s" not found; did you specify'
                          ' the full email address?' % email)
     else:
-        # You can only create a new user under one of the app-listed domains.
         try:
             app_settings = models.AppSettings.get()
         except ValueError:
@@ -106,6 +91,7 @@ def _get_or_create_user(email, put_new_user=True):
             # return None
             raise  # TODO(benley) implement Redirect exception
 
+        # You can only create a new user under one of the app-listed domains.
         domain = email.split('@')[-1]
         allowed_domains = app_settings.domains
         if domain not in allowed_domains:
@@ -448,6 +434,7 @@ def settings_handler():
     # We won't put() the new user until the settings are saved.
     user = _get_or_create_user(user_email, put_new_user=False)
 
+    # TODO(benley): https://stackoverflow.com/questions/12083254/is-it-possible-to-determine-with-ndb-if-model-is-persistent-in-the-datastore-or/12096066#12096066
     # NOTE: this will break if you explicitly set the key when creating the
     #       user entity!
     #       See https://groups.google.com/g/google-appengine/c/Tm8NDWIvc70
@@ -493,7 +480,7 @@ def update_settings_handler():
         user.put()
         return flask.redirect('/weekly?msg=You+are+now+hidden.+Have+a+nice+day!')
     elif flask.request.args.get('delete'):
-        user.delete()
+        user.key.delete()
         return flask.redirect('/weekly?msg=Your+account+has+been+deleted.+'
                               '(Note+your+existing+snippets+have+NOT+been+'
                               'deleted.)+Have+a+nice+day!')
@@ -565,8 +552,6 @@ def admin_update_settings_handler():
 
     This page should be restricted to admin users via app.yaml.
     """
-    _get_or_create_user(_current_user_email())
-
     domains = flask.request.form.get('domains')
     default_private = flask.request.form.get('private') == 'yes'
     default_markdown = flask.request.form.get('markdown') == 'yes'
@@ -601,6 +586,8 @@ def admin_update_settings_handler():
         app_settings.put()
 
     update_settings()
+
+    _get_or_create_user(_current_user_email())
 
     redirect_to = flask.request.form.get('redirect_to')
     if redirect_to == 'user_setting':   # true for new_user.html
@@ -643,7 +630,7 @@ def admin_manage_users_handler():
     elif flask.request.form.get("action") == "delete":
         email_of_user_to_delete = flask.request.form.get("email")
         user = util.get_user_or_die(email_of_user_to_delete)
-        user.delete()
+        user.key.delete()
         logging.info("Delete user: %s", user.email)
         return flask.redirect('/admin/manage_users?sort_by=%s&msg=%s+deleted'
                               % (sort_by, user.email))
