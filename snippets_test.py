@@ -15,6 +15,7 @@ import re
 import time
 import unittest
 from typing import AnyStr, Pattern
+import warnings
 
 from google.cloud import ndb
 from google.appengine.ext import testbed
@@ -77,6 +78,18 @@ class SnippetsTestBase(unittest.TestCase):
 
     def set_is_admin(self):
         self.testbed.setup_env(user_is_admin='1', overwrite=True)
+
+    def assertDictContainsSubset(self, subset, dictionary, msg=None):
+        """Checks whether dictionary is a superset of subset.
+
+        Suppresses the deprecation warning from upstream.
+        """
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
+            # If python upstream removes this function entirely, you can substitute
+            # this in a pinch:
+            # self.assertLessEqual(subset.items(), dictionary.items(), msg)
+            super().assertDictContainsSubset(subset, dictionary, msg)
 
     def assertNumSnippets(self, body, expected_count):
         """Assert the page 'body' has exactly expected_count snippets in it."""
