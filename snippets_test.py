@@ -7,6 +7,8 @@ This tests the functionality found at weekly-snippets.appspot.com.
 
 c.f. http://code.google.com/appengine/docs/python/tools/localunittesting.html
      https://flask.palletsprojects.com/en/2.2.x/testing/
+     https://docs.pytest.org/en/7.1.x/how-to/unittest.html
+     https://github.com/adamchainz/time-machine
 """
 
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
