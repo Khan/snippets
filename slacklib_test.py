@@ -12,18 +12,14 @@ import time_machine
 import models
 import slacklib
 
-
+# The fictional day for these tests Wednesday, July 29, 2015
+@time_machine.travel(datetime.datetime(2015, 7, 29, tzinfo=ZoneInfo("UTC")))
 class SlashCommandTest(unittest.TestCase):
 
     def setUp(self):
         self.testbed = testbed.Testbed()
         self.testbed.activate()
         self.testbed.init_user_stub()
-
-        # The fictional day for these tests Wednesday, July 29, 2015
-        self.traveller = time_machine.travel(
-            datetime.datetime(2015, 7, 29, tzinfo=ZoneInfo("UTC")))
-        self.traveller.start()
 
         self.testbed.setup_env(
             user_email="bob@example.com",
@@ -108,7 +104,6 @@ class SlashCommandTest(unittest.TestCase):
         return snippets_q.fetch(1)[0]
 
     def tearDown(self):
-        self.traveller.stop()
         self.testbed.deactivate()
 
     def testDumpCommand_empty(self):
@@ -270,6 +265,3 @@ class SlashCommandTest(unittest.TestCase):
         t = self._most_recent_snippet('toby@khanacademy.org')
         self.assertIn("I had fun", t.text)
         self.assertEqual(False, t.is_markdown)
-
-if __name__ == '__main__':
-    unittest.main()

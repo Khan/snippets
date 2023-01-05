@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 """Tests for the snippets server.
 
@@ -16,9 +17,11 @@ import time
 import unittest
 from typing import AnyStr, Pattern
 import warnings
+from zoneinfo import ZoneInfo
 
 from google.cloud import ndb
 from google.appengine.ext import testbed
+import time_machine
 
 import hipchatlib
 import models
@@ -26,24 +29,15 @@ import slacklib
 import snippets
 
 
-_TEST_TODAY = datetime.datetime(2012, 2, 23)
-
-
+# Today's pretend date is Thursday, Feb 23, 2012
+@time_machine.travel(datetime.datetime(2012, 2, 23, tzinfo=ZoneInfo("UTC")))
 class SnippetsTestBase(unittest.TestCase):
     def setUp(self):
-        # https://stackoverflow.com/questions/8416208/in-python-is-there-a-good-idiom-for-using-context-managers-in-setup-teardown
-        # self.ndb_client = ndb.Client()
-        # with contextlib.ExitStack() as stack:
-        #     stack.enter_context(self.ndb_client.context())
-        #     resource_stack = stack.pop_all()
-        #     self.addCleanup(resource_stack.close)
-
         self.testbed = testbed.Testbed()
         self.testbed.activate()
         self.testbed.init_user_stub()
 
         self.request_fetcher = snippets.app.test_client()
-        snippets._TODAY_FN = lambda: _TEST_TODAY
 
         # Make sure we never accidentally send messages to chat.
         self.old_send_to_hipchat_room = hipchatlib.send_to_hipchat_room
@@ -150,7 +144,7 @@ class SnippetsTestBase(unittest.TestCase):
 class UserTestBase(SnippetsTestBase):
     """The most common base: someone who is logged in as user@example.com."""
     def setUp(self):
-        super(UserTestBase, self).setUp()
+        super().setUp()
         self.login('user@example.com')
 
 
@@ -463,7 +457,7 @@ class AppSettingsTestCase(UserTestBase):
     """Test the app-settings page."""
 
     def setUp(self):
-        super(AppSettingsTestCase, self).setUp()
+        super().setUp()
         self.set_is_admin()
 
     def testDomainsParsing(self):
@@ -848,23 +842,23 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         url = '/update_snippet?week=02-06-2012&snippet=old+snippet'
         self.request_fetcher.get(url)
 
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 19)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 19)):
+            response = self.request_fetcher.get('/')
         self.assertNotIn('Due today', response.text)
         self.assertNotIn('OVERDUE', response.text)
 
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 20)):
+            response = self.request_fetcher.get('/')
         self.assertIn('Due today', response.text)
         self.assertNotIn('OVERDUE', response.text)
 
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 21)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 21)):
+            response = self.request_fetcher.get('/')
         self.assertNotIn('Due today', response.text)
         self.assertIn('OVERDUE', response.text)
 
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 22)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 22)):
+            response = self.request_fetcher.get('/')
         self.assertNotIn('Due today', response.text)
         self.assertIn('OVERDUE', response.text)
 
@@ -873,8 +867,8 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         self.request_fetcher.get(url)
 
         for date in (19, 20, 21, 22):
-            snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, date)
-            response = self.request_fetcher.get('/')
+            with time_machine.travel(datetime.datetime(2012, 2, date)):
+                response = self.request_fetcher.get('/')
             self.assertNotIn('Due today', response.text)
             self.assertNotIn('OVERDUE', response.text)
 
@@ -883,8 +877,8 @@ class SetAndViewSnippetsTestCase(UserTestBase):
         url = '/update_snippet?week=02-06-2012&snippet=my+snippet'
         self.request_fetcher.get(url)
 
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 6)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 6)):
+            response = self.request_fetcher.get('/')
         self.assertIn('February 6, 2012', response.text)
 
     def testUrlize(self):
@@ -922,57 +916,57 @@ class ShowCorrectWeekTestCase(UserTestBase):
     """Test we show the right snippets for edit/view based on day of week."""
 
     def setUp(self):
-        super(ShowCorrectWeekTestCase, self).setUp()
+        super().setUp()
         # Register the user so snippet-fetching works.
         url = '/update_settings?category=dummy'
         self.request_fetcher.get(url)
 
     def testMonday(self):
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 20)):
+            response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.text, 0)
         # For *viewing*'s snippets, we always show last week's snippets.
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.text)
 
     def testTuesday(self):
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 21)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 21)):
+            response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.text, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.text)
 
     def testWednesday(self):
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 22)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 22)):
+            response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.text, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.text)
 
     def testThursday(self):
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 23)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 23)):
+            response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.text, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.text)
 
     def testFriday(self):
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 24)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 24)):
+            response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.text, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.text)
 
     def testSaturday(self):
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 25)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 25)):
+            response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.text, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.text)
 
     def testSunday(self):
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 26)
-        response = self.request_fetcher.get('/')
+        with time_machine.travel(datetime.datetime(2012, 2, 26)):
+            response = self.request_fetcher.get('/')
         self.assertInSnippet('February 20, 2012', response.text, 0)
         response = self.request_fetcher.get('/weekly')
         self.assertIn('February 13, 2012', response.text)
@@ -1043,7 +1037,7 @@ class PrivateSnippetTestCase(UserTestBase):
     """Tests that we properly restrict viewing of private snippets."""
 
     def setUp(self):
-        super(PrivateSnippetTestCase, self).setUp()
+        super().setUp()
         # Set up a user with some private and some not-private snippets,
         # another user with only private, and another with only public.
         self.login('private@example.com')
@@ -1160,7 +1154,7 @@ class MarkdownSnippetTestCase(UserTestBase):
     class.
     """
     def setUp(self):
-        super(MarkdownSnippetTestCase, self).setUp()
+        super().setUp()
 
         # Set up some snippets as markdown, and some not.
         url = ('/update_snippet?week=02-13-2012&snippet=*+item+1%0A*+item+2'
@@ -1181,25 +1175,25 @@ class MarkdownSnippetTestCase(UserTestBase):
 class ManageUsersTestCase(UserTestBase):
     """Test we can delete users properly."""
     def setUp(self):
-        super(ManageUsersTestCase, self).setUp()
+        super().setUp()
 
         # Have users with various snippet characteristics.
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20, 12, 0, 0)
-        self.login('has_one_snippet@example.com')
-        self.request_fetcher.get('/update_snippet?week=02-13-2012&snippet=s1')
+        with time_machine.travel(datetime.datetime(2012, 2, 20, 12, 0, 0)):
+            self.login('has_one_snippet@example.com')
+            self.request_fetcher.get('/update_snippet?week=02-13-2012&snippet=s1')
 
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20, 12, 0, 1)
-        self.login('has_many_snippets@example.com')
-        self.request_fetcher.get('/update_snippet?week=01-30-2012&snippet=s2')
-        self.request_fetcher.get('/update_snippet?week=02-13-2012&snippet=s3')
+        with time_machine.travel(datetime.datetime(2012, 2, 20, 12, 0, 1)):
+            self.login('has_many_snippets@example.com')
+            self.request_fetcher.get('/update_snippet?week=01-30-2012&snippet=s2')
+            self.request_fetcher.get('/update_snippet?week=02-13-2012&snippet=s3')
 
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20, 12, 0, 2)
-        self.login('has_old_snippet@example.com')
-        self.request_fetcher.get('/update_snippet?week=02-14-2011&snippet=s4')
+        with time_machine.travel(datetime.datetime(2012, 2, 20, 12, 0, 2)):
+            self.login('has_old_snippet@example.com')
+            self.request_fetcher.get('/update_snippet?week=02-14-2011&snippet=s4')
 
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 20, 12, 0, 3)
-        self.login('has_no_snippets@example.com')
-        self.request_fetcher.get('/update_settings')
+        with time_machine.travel(datetime.datetime(2012, 2, 20, 12, 0, 3)):
+            self.login('has_no_snippets@example.com')
+            self.request_fetcher.get('/update_settings')
 
     def get_user_list(self, body):
         """Returns the email usernames of the user-list, in order."""
@@ -1332,11 +1326,14 @@ class ManageUsersTestCase(UserTestBase):
         )
 
 
+# We send out mail on Sunday nights and Monday mornings, so we'll set 'today' to
+# be Sunday right around midnight.
+@time_machine.travel(datetime.datetime(2012, 2, 19, 23, 50, 0, tzinfo=ZoneInfo("UTC")))
 class SendingEmailTestCase(UserTestBase):
     """Test we correctly send cron emails."""
 
     def setUp(self):
-        super(SendingEmailTestCase, self).setUp()
+        super().setUp()
         self.testbed.init_mail_stub()
         self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
         # The email-senders sleep 2 seconds between sends for quota
@@ -1344,10 +1341,6 @@ class SendingEmailTestCase(UserTestBase):
         # it.  The quota test will redefine time.sleep itself.
         self.sleep_fn = time.sleep
         time.sleep = lambda sec: sec
-
-        # We send out mail on Sunday nights and Monday mornings, so
-        # we'll set 'today' to be Sunday right around midnight.
-        snippets._TODAY_FN = lambda: datetime.datetime(2012, 2, 19, 23, 50, 0)
 
         # For our mail tests, we set up a db with a few users, some of
         # whom have snippets for this week ('this week' being 13 Feb
@@ -1368,8 +1361,8 @@ class SendingEmailTestCase(UserTestBase):
         self.login('user@example.com')        # back to the normal user
 
     def tearDown(self):
-        UserTestBase.tearDown(self)
         time.sleep = self.sleep_fn
+        super().tearDown()
 
     def assertEmailSentTo(self, email):
         r = self.mail_stub.get_sent_messages(to=email)
@@ -1500,7 +1493,7 @@ class SendingChatTestCase(UserTestBase):
     """Test we correctly send to hipchat/slack."""
     def setUp(self):
         # (The superclass sets up hipchat_sends and slack_sends for us.)
-        super(SendingChatTestCase, self).setUp()
+        super().setUp()
         # Let's set up default chat configs.
         app_settings = models.AppSettings.get()
         app_settings.hipchat_room = 'hipchat r00m'
@@ -1563,7 +1556,7 @@ class TitleCaseTestCase(unittest.TestCase):
 class DisplayNameTestCase(UserTestBase):
     """Manipulate a user's display name and check it in weekly page."""
     def setUp(self):
-        super(UserTestBase, self).setUp()
+        super().setUp()
         self.login('user@example.com')
 
     def testUserHasEmptyDisplayName(self):
@@ -1648,6 +1641,3 @@ class DisplayNameTestCase(UserTestBase):
         self.assertNumSnippets(response.text, 1)
         self.assertInSnippet('<h3>test name (user@example.com):</h3>',
                              response.text, 0)
-
-if __name__ == '__main__':
-    unittest.main()
