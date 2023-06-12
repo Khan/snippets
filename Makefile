@@ -7,7 +7,7 @@ test_deps:
 	pip install -r requirements-dev.txt
 
 test check:
-	python -m unittest discover -p '*_test.py'
+	pytest
 
 appcfg-update deploy:
 	gcloud app deploy

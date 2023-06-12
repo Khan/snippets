@@ -13,10 +13,9 @@ class NDBMiddleware:
     def __init__(self, app):
         self.app = app
         self.client = ndb.Client()
-        self.app.ndb_context = self.client.context()
 
     def __call__(self, environ, start_response):
-        with self.app.ndb_context:
+        with self.client.context():
             return self.app(environ, start_response)
 
 app.wsgi_app = NDBMiddleware(app.wsgi_app)

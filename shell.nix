@@ -1,6 +1,8 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ sources ? import ./nix/sources.nix }:
 
 let
+  pkgs = import sources.nixpkgs {};
+
   python = pkgs.python310.override {
     packageOverrides = self: super: {
 
