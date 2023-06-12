@@ -93,14 +93,13 @@ let
 
 in pkgs.mkShell {
   buildInputs = with pkgs; [
-    nodePackages.pyright
+    nodePackages.pyright  # Type checker
+    honcho  # Procfile runner
     pythonEnv
-    # google-app-engine-go-sdk  # dev_appserver.py is in here for some reason
     (google-cloud-sdk.withExtraComponents ([
       google-cloud-sdk.components.app-engine-python
       google-cloud-sdk.components.app-engine-python-extras
      ]))
-    jre
-
+    jre  # gcloud datastore emulator needs jre
   ];
 }

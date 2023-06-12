@@ -1,7 +1,7 @@
 .PHONY: serve test_deps test check appcfg-update deploy
 
 serve:
-	python main.py
+	honcho start
 
 test_deps:
 	pip install -r requirements-dev.txt
