@@ -36,7 +36,12 @@ if os.getenv("GAE_ENV", "").startswith("standard"):
 # This allows mocking in a different day, for testing.
 _TODAY_FN = datetime.datetime.now
 
-app = flask.Flask(__name__)
+app = flask.Flask(
+    __name__,
+    # Drop /static prefix for things like /favicon.ico
+    static_url_path="",
+    static_folder="static",
+    template_folder="templates")
 
 
 @app.template_filter("readable_date")

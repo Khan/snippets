@@ -1,13 +1,16 @@
 .PHONY: serve test_deps test check appcfg-update deploy
 
 serve:
-	dev_appserver.py --log_level=debug . --host=0.0.0.0
+	python main.py
 
 test_deps:
 	pip install -r requirements-dev.txt
 
-test check:
+test:
 	pytest
+
+typecheck:
+	pyright
 
 appcfg-update deploy:
 	gcloud app deploy
