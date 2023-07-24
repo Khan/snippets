@@ -36,10 +36,6 @@ import util
 _REQUIRE_SLASH_TOKEN = True
 
 
-# This allows mocking in a different day, for testing.
-_TODAY_FN = datetime.datetime.now
-
-
 def _web_api(api_method, payload):
     """Send a payload to the Slack Web API, automatically inserting token.
 
@@ -140,7 +136,8 @@ def _user_snippet(user_email, weeks_back=0):
     )
 
     filled_snips = util.fill_in_missing_snippets(user_snips, account,
-                                                 user_email, _TODAY_FN())
+                                                 user_email,
+                                                 datetime.datetime.now())
     logging.debug(
         'User %s snippets *filled* to: %s', user_email, len(filled_snips)
     )

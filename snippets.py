@@ -32,9 +32,6 @@ if os.getenv("GAE_ENV", "").startswith("standard"):
     logging_client = google.cloud.logging.Client()
     logging_client.setup_logging(log_level=logging.INFO)
 
-# This allows mocking in a different day, for testing.
-_TODAY_FN = datetime.datetime.now
-
 app = flask.Flask(
     __name__,
     # Drop /static prefix for things like /favicon.ico
@@ -106,7 +103,7 @@ def _get_or_create_user(email, put_new_user=True):
                                % (' or '.join(allowed_domains), domain))
 
         # Set the user defaults based on the global app defaults.
-        user = models.User(created=_TODAY_FN(),
+        user = models.User(created=datetime.datetime.now(),
                            email=email,
                            uses_markdown=app_settings.default_markdown,
                            private_snippets=app_settings.default_private,
@@ -197,7 +194,8 @@ def user_page_handler():
     if not _can_view_private_snippets(_current_user_email(), user_email):
         snippets = [snippet for snippet in snippets if not snippet.private]
     snippets = util.fill_in_missing_snippets(snippets, user,
-                                             user_email, _TODAY_FN())
+                                             user_email,
+                                             datetime.datetime.now())
     snippets.reverse()                  # get to newest snippet first
 
     template_values = {
@@ -206,10 +204,11 @@ def user_page_handler():
         'username': user_email,
         'is_admin': users.is_current_user_admin(),
         'domain': user_email.split('@')[-1],
-        'view_week': util.existingsnippet_monday(_TODAY_FN()),
+        'view_week': util.existingsnippet_monday(datetime.datetime.now()),
         # Snippets for the week of <one week ago> are due today.
-        'one_week_ago': _TODAY_FN().date() - datetime.timedelta(days=7),
-        'eight_days_ago': _TODAY_FN().date() - datetime.timedelta(days=8),
+        'one_week_ago': (datetime.datetime.now().date() -
+                         datetime.timedelta(days=7)),
+        'eight_days_ago': datetime.datetime.now().date() - datetime.timedelta(days=8),
         'editable': (_logged_in_user_has_permission_for(user_email) and
                      flask.request.args.get('edit', '1') == '1'),
         'user': user,
@@ -239,7 +238,7 @@ def summary_page_handler():
     if week_string:
         week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
     else:
-        week = util.existingsnippet_monday(_TODAY_FN())
+        week = util.existingsnippet_monday(datetime.datetime.now())
 
     snippets_q = models.Snippet.query(
         models.Snippet.week == week
@@ -349,7 +348,7 @@ def update_snippet(email: str,
         snippet.is_markdown = is_markdown
     else:
         # add the snippet to the db
-        snippet = models.Snippet(created=_TODAY_FN(),
+        snippet = models.Snippet(created=datetime.datetime.now(),
                                  display_name=user.display_name,
                                  email=email, week=week,
                                  text=text, private=private,
@@ -459,7 +458,7 @@ def settings_handler():
         'message': flask.request.args.get('msg'),
         'username': user.email,
         'is_admin': users.is_current_user_admin(),
-        'view_week': util.existingsnippet_monday(_TODAY_FN()),
+        'view_week': util.existingsnippet_monday(datetime.datetime.now()),
         'user': user,
         'is_new_user': is_new_user,
         'redirect_to': flask.request.args.get('redirect_to', ''),
@@ -549,7 +548,7 @@ def admin_settings_handler():
         'message': flask.request.args.get('msg'),
         'username': _current_user_email(),
         'is_admin': users.is_current_user_admin(),
-        'view_week': util.existingsnippet_monday(_TODAY_FN()),
+        'view_week': util.existingsnippet_monday(datetime.datetime.now()),
         'redirect_to': flask.request.args.get('redirect_to', ''),
         'settings': app_settings,
         'slack_slash_commands': slacklib.command_usage().strip()
@@ -650,8 +649,8 @@ def admin_manage_users_handler():
         # Get the last snippet for that user.
         last_snippet = util.most_recent_snippet_for_user(user.email)
         if last_snippet:
-            seconds_since_snippet = (
-                (_TODAY_FN().date() - last_snippet.week).total_seconds())
+            seconds_since_snippet = (datetime.datetime.now().date() -
+                                     last_snippet.week).total_seconds()
             weeks_since_snippet = int(
                 seconds_since_snippet /
                 datetime.timedelta(days=7).total_seconds())
@@ -676,7 +675,7 @@ def admin_manage_users_handler():
         'message': flask.request.args.get('msg'),
         'username': _current_user_email(),
         'is_admin': users.is_current_user_admin(),
-        'view_week': util.existingsnippet_monday(_TODAY_FN()),
+        'view_week': util.existingsnippet_monday(datetime.datetime.now()),
         'user_data': user_data,
         'sort_by': sort_by,
     }
@@ -766,7 +765,8 @@ def admin_send_reminder_email_handler() -> flask.Response:
         _maybe_send_snippets_mail(email, 'Weekly snippets due today at 5pm',
                                   'reminder_email.txt', template_values)
 
-    email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
+    email_to_has_snippet = _get_email_to_current_snippet_map(
+        datetime.datetime.now())
     for user_email, has_snippet in email_to_has_snippet.items():
         if not has_snippet:
             _send_mail(user_email)
@@ -789,7 +789,8 @@ def admin_send_view_email_handler() -> flask.Response:
         _maybe_send_snippets_mail(email, 'Weekly snippets are ready!',
                                   'view_email.txt', template_values)
 
-    email_to_has_snippet = _get_email_to_current_snippet_map(_TODAY_FN())
+    email_to_has_snippet = _get_email_to_current_snippet_map(
+        datetime.datetime.now())
     for user_email, has_snippet in email_to_has_snippet.items():
         _send_mail(user_email, has_snippet)
         logging.debug('sent "view" email to %s', user_email)
