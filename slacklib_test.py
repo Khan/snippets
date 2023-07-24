@@ -97,14 +97,14 @@ class SlashCommandTest(unittest.TestCase):
             """)
         ).put()
 
+    def tearDown(self):
+        self.testbed.deactivate()
+
     def _most_recent_snippet(self, user_email):
         snippets_q = models.Snippet.query(
             models.Snippet.email == user_email
         ).order('-week')  # newest snippet first
         return snippets_q.fetch(1)[0]
-
-    def tearDown(self):
-        self.testbed.deactivate()
 
     def testDumpCommand_empty(self):
         # user without a recent snippet should just see null text

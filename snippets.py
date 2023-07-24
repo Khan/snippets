@@ -9,7 +9,7 @@ snippets in them.
 __author__ = 'Craig Silverstein <csilvers@khanacademy.org>'
 
 import datetime
-from functools import cmp_to_key
+import functools
 import logging
 import os
 import re
@@ -358,71 +358,81 @@ def update_snippet(email: str,
     snippet.put()
 
 
-@app.route("/update_snippet", methods=["POST", "GET"])
-def update_snippet_handler():
+@app.route("/update_snippet", methods=["POST"])
+def update_snippet_handler_post():
+    """handle ajax updates via POST
 
-    if flask.request.method == "POST":
-        data = flask.request.form
-    else:
-        data = flask.request.args
+    in particular, return status via json rather than redirects and
+    hard exceptions. This isn't actually RESTy, it's just status
+    codes and json.
+    """
 
+    data = flask.request.form
     week_string = data.get('week', '')
     text = data.get('snippet', '')
     private = data.get('private') == 'True'
     is_markdown = data.get('is_markdown') == 'True'
 
-    if flask.request.method == "POST":
-        """handle ajax updates via POST
+    # TODO(marcos): consider using PUT?
 
-        in particular, return status via json rather than redirects and
-        hard exceptions. This isn't actually RESTy, it's just status
-        codes and json.
-        """
-        # TODO(marcos): consider using PUT?
+    if not users.get_current_user():
+        return flask.make_response(
+            {"status": 401, "message": "not logged in"}, 401)
 
-        if not users.get_current_user():
-            return flask.make_response({"status": 401, "message": "not logged in"}, 401)
+    email = data.get('u', _current_user_email())
+    if not _logged_in_user_has_permission_for(email):
+        # TODO(marcos): present these messages to the ajax client
+        error = ('You do not have permissions to update user'
+                 ' snippets for %s' % email)
+        return flask.make_response({"status": 403, "message": error}, 403)
 
-        email = data.get('u', _current_user_email())
-        if not _logged_in_user_has_permission_for(email):
-            # TODO(marcos): present these messages to the ajax client
-            error = ('You do not have permissions to update user'
-                     ' snippets for %s' % email)
-            return flask.make_response({"status": 403, "message": error}, 403)
+    try:
+        week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
+    except (ValueError, TypeError):
+        return flask.make_response(
+            {"status": 400,
+             "message": "Invalid week. Expected format: MM-DD-YYYY"},
+            400)
 
-        try:
-            week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
-        except (ValueError, TypeError):
-            return flask.make_response({"status": 400, "message": "Invalid week. Expected format: MM-DD-YYYY"}, 400)
+    try:
+        update_snippet(email, week, text, private, is_markdown)
+    except AssertionError as err:
+        return flask.make_response({"status": 400, "message": err}, 400)
 
-        try:
-            update_snippet(email, week, text, private, is_markdown)
-        except AssertionError as err:
-            return flask.make_response({"status": 400, "message": err}, 400)
+    return flask.make_response({"status": 200, "message": "ok"})
 
-        return flask.make_response({"status": 200, "message": "ok"})
 
-    else:  # flask.request.method == "GET"
-        if not users.get_current_user():
-            return _login_page(flask.request)
+@app.route("/update_snippet", methods=["GET"])
+def update_snippet_handler_get():
 
-        email = data.get('u', _current_user_email())
-        if not _logged_in_user_has_permission_for(email):
-            # TODO(benley): Add a friendlier error page template, maybe?
-            return flask.make_response("You do not have permission to update"
-                                       " user snippets for %s" % email, 403)
+    data = flask.request.args
+    week_string = data.get('week', '')
+    text = data.get('snippet', '')
+    private = data.get('private') == 'True'
+    is_markdown = data.get('is_markdown') == 'True'
 
-        try:
-            week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
-        except (ValueError, TypeError):
-            return flask.make_response("Invalid week. Expected format: MM-DD-YYYY", 400)
+    if not users.get_current_user():
+        return _login_page(flask.request)
 
-        try:
-            update_snippet(email, week, text, private, is_markdown)
-        except AssertionError as err:
-            return flask.make_response("Failed to save snippet: %s" % err, 400)
+    email = data.get('u', _current_user_email())
+    if not _logged_in_user_has_permission_for(email):
+        # TODO(benley): Add a friendlier error page template, maybe?
+        return flask.make_response("You do not have permission to update"
+                                   " user snippets for %s" % email, 403)
 
-        return flask.redirect("/?msg=Snippet+saved&u=%s" % urllib.parse.quote(email))
+    try:
+        week = datetime.datetime.strptime(week_string, '%m-%d-%Y').date()
+    except (ValueError, TypeError):
+        return flask.make_response(
+            "Invalid week. Expected format: MM-DD-YYYY", 400)
+
+    try:
+        update_snippet(email, week, text, private, is_markdown)
+    except AssertionError as err:
+        return flask.make_response("Failed to save snippet: %s" % err, 400)
+
+    return flask.redirect(
+        "/?msg=Snippet+saved&u=%s" % urllib.parse.quote(email))
 
 
 @app.route("/settings")
@@ -443,10 +453,7 @@ def settings_handler():
     # NOTE: this will break if you explicitly set the key when creating the
     #       user entity!
     #       See https://groups.google.com/g/google-appengine/c/Tm8NDWIvc70
-    if user.key and user.key.id():
-        is_new_user = False
-    else:
-        is_new_user = True
+    is_new_user = bool(user.key and user.key.id())
 
     template_values = {
         'logout_url': users.create_logout_url('/'),
@@ -662,14 +669,14 @@ def admin_manage_users_handler():
     # We have to use 'cmp' here since we want ascending in the
     # primary key and descending in the secondary key, sometimes.
     if sort_by == 'email':
-        user_data.sort(key=cmp_to_key(lambda x, y: cmp(x[0], y[0])))
+        user_data.sort(key=functools.cmp_to_key(lambda x, y: cmp(x[0], y[0])))
     elif sort_by == 'creation_time':
-        user_data.sort(key=cmp_to_key(
+        user_data.sort(key=functools.cmp_to_key(
             lambda x, y: (-cmp(x[2] or datetime.datetime.min,
                                y[2] or datetime.datetime.min)
                           or cmp(x[0], y[0]))))
     elif sort_by == 'last_snippet_time':
-        user_data.sort(key=cmp_to_key(
+        user_data.sort(key=functools.cmp_to_key(
             lambda x, y: (-cmp(1000 if x[3] is None else x[3],
                                1000 if y[3] is None else y[3])
                           or cmp(x[0], y[0]))))

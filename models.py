@@ -32,9 +32,9 @@ class User(ndb.Model):
     private_snippets = ndb.BooleanProperty(default=False)  # private by default?
     wants_email = ndb.BooleanProperty(default=True)        # get nag emails?
     # TODO(csilvers): make a ListProperty instead.
-    wants_to_view = ndb.TextProperty(default='all')        # comma-separated list
-    display_name = ndb.TextProperty(default='')            # display name of the user
-    slack_id = ndb.StringProperty(default='')              # Slack member ID associated with this user
+    wants_to_view = ndb.TextProperty(default='all')  # comma-separated list
+    display_name = ndb.TextProperty(default='')  # Display name of the user
+    slack_id = ndb.StringProperty(default='')  # Slack member ID (not nickname!)
 
 
 class Snippet(ndb.Model):

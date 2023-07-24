@@ -205,7 +205,7 @@ def command_list(user_email: str) -> str:
     return textwrap.dedent(
         "*Your snippets for the week so far:*\n" +
         _format_snippet_items(items)
-)
+    )
 
 
 def command_last(user_email):
