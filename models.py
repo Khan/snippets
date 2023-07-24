@@ -66,8 +66,6 @@ class AppSettings(db.Model):
     default_email = db.BooleanProperty(default=True)      # new-user default
     # Chat and email settings
     email_from = db.StringProperty(default='')
-    hipchat_room = db.StringProperty(default='')
-    hipchat_token = db.StringProperty(default='')
     slack_channel = db.StringProperty(default='')
     slack_token = db.StringProperty(default='')
     slack_slash_token = db.StringProperty(default='')

@@ -33,7 +33,6 @@ from google.appengine.ext import db
 from google.appengine.ext import testbed
 import webtest   # may need to do 'pip install webtest'
 
-import hipchatlib
 import models
 import slacklib
 import snippets
@@ -55,11 +54,6 @@ class SnippetsTestBase(unittest.TestCase):
         snippets._TODAY_FN = lambda: _TEST_TODAY
 
         # Make sure we never accidentally send messages to chat.
-        self.old_send_to_hipchat_room = hipchatlib.send_to_hipchat_room
-        self.hipchat_sends = []
-        hipchatlib.send_to_hipchat_room = (
-            lambda *args: self.hipchat_sends.append(args))
-
         self.old_send_to_slack_channel = slacklib.send_to_slack_channel
         self.slack_sends = []
         slacklib.send_to_slack_channel = (
@@ -67,7 +61,6 @@ class SnippetsTestBase(unittest.TestCase):
 
     def tearDown(self):
         self.testbed.deactivate()
-        hipchatlib.send_to_hipchat_room = self.old_send_to_hipchat_room
         slacklib.send_to_slack_channel = self.old_send_to_slack_channel
 
     def login(self, email):
@@ -1432,14 +1425,12 @@ class SendingEmailTestCase(UserTestBase):
 
 
 class SendingChatTestCase(UserTestBase):
-    """Test we correctly send to hipchat/slack."""
+    """Test we correctly send to Slack."""
     def setUp(self):
-        # (The superclass sets up hipchat_sends and slack_sends for us.)
+        # (The superclass sets up slack_sends for us.)
         super(SendingChatTestCase, self).setUp()
         # Let's set up default chat configs.
         app_settings = models.AppSettings.get()
-        app_settings.hipchat_room = 'hipchat r00m'
-        app_settings.hipchat_token = 'ht'
         app_settings.slack_channel = '#slack_chann3l'
         app_settings.slack_token = 'st'
         app_settings.slack_slash_token = 'sst'
@@ -1448,24 +1439,10 @@ class SendingChatTestCase(UserTestBase):
     def test_send_to_chat(self):
         self.request_fetcher.get('/admin/send_friday_reminder_chat')
 
-        self.assertEqual(1, len(self.hipchat_sends))
-        self.assertEqual('hipchat r00m', self.hipchat_sends[0][0])
-        self.assertIn('Weekly snippets due', self.hipchat_sends[0][1])
-        self.assertIn('https://example.com', self.hipchat_sends[0][1])
-
         self.assertEqual(1, len(self.slack_sends))
         self.assertEqual('#slack_chann3l', self.slack_sends[0][0])
         self.assertIn('Weekly snippets due', self.slack_sends[0][1])
         self.assertIn('https://example.com', self.slack_sends[0][1])
-
-    def test_disable_hipchat(self):
-        app_settings = models.AppSettings.get()
-        app_settings.hipchat_room = ''
-        app_settings.put()
-
-        self.request_fetcher.get('/admin/send_friday_reminder_chat')
-        self.assertEqual([], self.hipchat_sends)
-        self.assertNotEqual([], self.slack_sends)
 
     def test_disable_slack(self):
         app_settings = models.AppSettings.get()
@@ -1474,7 +1451,6 @@ class SendingChatTestCase(UserTestBase):
 
         self.request_fetcher.get('/admin/send_friday_reminder_chat')
         self.assertEqual([], self.slack_sends)
-        self.assertNotEqual([], self.hipchat_sends)
 
 
 class TitleCaseTestCase(unittest.TestCase):
