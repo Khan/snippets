@@ -138,7 +138,7 @@ users at `example.com` would be able to see your Snippet.
 Email and chat
 --------------
 
-The snippet server integrates with email, HipChat, and Slack.
+The snippet server integrates with email and Slack.
 
 It can send individual emails to people who have not written a snippet
 for this week, reminding them to do so.  (Users can turn this feature

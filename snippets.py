@@ -21,7 +21,6 @@ from google.appengine.ext import db
 import webapp2
 from webapp2_extras import jinja2
 
-import hipchatlib
 import models
 import slacklib
 import util
@@ -141,10 +140,6 @@ def _send_to_chat(msg, url_path):
         return
 
     msg = "%s %s%s" % (msg, app_settings.hostname, url_path)
-
-    hipchat_room = app_settings.hipchat_room
-    if hipchat_room:
-        hipchatlib.send_to_hipchat_room(hipchat_room, msg)
 
     slack_channel = app_settings.slack_channel
     if slack_channel:
@@ -552,8 +547,6 @@ class UpdateAppSettings(BaseHandler):
         default_markdown = self.request.get('markdown') == 'yes'
         default_email = self.request.get('reminder_email') == 'yes'
         email_from = self.request.get('email_from')
-        hipchat_room = self.request.get('hipchat_room')
-        hipchat_token = self.request.get('hipchat_token')
         slack_channel = self.request.get('slack_channel')
         slack_token = self.request.get('slack_token')
         slack_slash_token = self.request.get('slack_slash_token')
@@ -571,8 +564,6 @@ class UpdateAppSettings(BaseHandler):
             app_settings.default_markdown = default_markdown
             app_settings.default_email = default_email
             app_settings.email_from = email_from
-            app_settings.hipchat_room = hipchat_room
-            app_settings.hipchat_token = hipchat_token
             app_settings.slack_channel = slack_channel
             app_settings.slack_token = slack_token
             app_settings.slack_slash_token = slack_slash_token
@@ -798,7 +789,6 @@ application = webapp2.WSGIApplication([
     ('/admin/send_friday_reminder_chat', SendFridayReminderChat),
     ('/admin/send_reminder_email', SendReminderEmail),
     ('/admin/send_view_email', SendViewEmail),
-    ('/admin/test_send_to_hipchat', hipchatlib.TestSendToHipchat),
     ('/slack', slacklib.SlashCommand),
     ],
     debug=True)

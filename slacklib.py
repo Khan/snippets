@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 """Snippets server -> Slack integration.
 
-This provides HipChat integration with the snippet server, for
+This provides Slack integration with the snippet server, for
 organizations that use Slack for messaging.  This provides Slack
 integration with the snippet server, as well prototype CLI style
 interaction with snippets via the Slack "slash commands" integration.
