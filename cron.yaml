@@ -1,6 +1,6 @@
 cron:
 
-- description: snippets hipchat -- early reminder to write snippets
+- description: snippets chat -- early reminder to write snippets
   url: /admin/send_friday_reminder_chat
   schedule: every friday 13:00
   timezone: US/Pacific

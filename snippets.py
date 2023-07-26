@@ -21,7 +21,6 @@ from google.cloud import ndb
 import google.cloud.logging
 import flask
 
-import hipchatlib
 import models
 import slacklib
 import util
@@ -149,10 +148,6 @@ def _send_to_chat(msg, url_path):
         return
 
     msg = "%s %s%s" % (msg, app_settings.hostname, url_path)
-
-    hipchat_room = app_settings.hipchat_room
-    if hipchat_room:
-        hipchatlib.send_to_hipchat_room(hipchat_room, msg)
 
     slack_channel = app_settings.slack_channel
     if slack_channel:
@@ -587,8 +582,6 @@ def admin_update_settings_handler():
         app_settings.default_markdown = default_markdown
         app_settings.default_email = default_email
         app_settings.email_from = email_from
-        app_settings.hipchat_room = hipchat_room
-        app_settings.hipchat_token = hipchat_token
         app_settings.hostname = hostname
         app_settings.slack_channel = slack_channel
         app_settings.slack_token = slack_token
@@ -811,5 +804,3 @@ def warmup():
 
 app.add_url_rule("/slack", view_func=slacklib.slash_command_handler,
                  methods=["POST"])
-app.add_url_rule("/admin/test_send_to_hipchat",
-                 view_func=hipchatlib.test_send_to_hipchat_handler)

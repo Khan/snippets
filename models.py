@@ -67,8 +67,6 @@ class AppSettings(ndb.Model):
     default_email = ndb.BooleanProperty(default=True)      # new-user default
     # Chat and email settings
     email_from = ndb.StringProperty(default='')
-    hipchat_room = ndb.StringProperty(default='')
-    hipchat_token = ndb.StringProperty(default='')
     slack_channel = ndb.StringProperty(default='')
     slack_token = ndb.StringProperty(default='')
     slack_slash_token = ndb.StringProperty(default='')
