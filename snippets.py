@@ -166,6 +166,8 @@ def user_page_handler():
     user_email = flask.request.args.get('u', _current_user_email())
     user = util.get_user(user_email)
 
+    now = datetime.datetime.now()
+
     if not user:
         # If there are no app settings, set those up before setting
         # up the user settings.
@@ -190,10 +192,8 @@ def user_page_handler():
 
     if not _can_view_private_snippets(_current_user_email(), user_email):
         snippets = [snippet for snippet in snippets if not snippet.private]
-    snippets = util.fill_in_missing_snippets(snippets, user,
-                                             user_email,
-                                             datetime.datetime.now())
-    snippets.reverse()                  # get to newest snippet first
+    snippets = util.fill_in_missing_snippets(snippets, user, user_email, now)
+    snippets.reverse()  # get to newest snippet first
 
     template_values = {
         'logout_url': users.create_logout_url('/'),
@@ -201,11 +201,10 @@ def user_page_handler():
         'username': user_email,
         'is_admin': users.is_current_user_admin(),
         'domain': user_email.split('@')[-1],
-        'view_week': util.existingsnippet_monday(datetime.datetime.now()),
+        'view_week': util.existingsnippet_monday(now),
         # Snippets for the week of <one week ago> are due today.
-        'one_week_ago': (datetime.datetime.now().date() -
-                         datetime.timedelta(days=7)),
-        'eight_days_ago': datetime.datetime.now().date() - datetime.timedelta(days=8),
+        'one_week_ago': now.date() - datetime.timedelta(days=7),
+        'eight_days_ago': now.date() - datetime.timedelta(days=8),
         'editable': (_logged_in_user_has_permission_for(user_email) and
                      flask.request.args.get('edit', '1') == '1'),
         'user': user,
@@ -636,13 +635,15 @@ def admin_manage_users_handler():
     user_q = models.User.query()
     results = user_q.fetch(1000)
 
+    now = datetime.datetime.now()
+
     # Tuple: (email, is-hidden, creation-time, days since last snippet)
     user_data = []
     for user in results:
         # Get the last snippet for that user.
         last_snippet = util.most_recent_snippet_for_user(user.email)
         if last_snippet:
-            seconds_since_snippet = (datetime.datetime.now().date() -
+            seconds_since_snippet = (now.date() -
                                      last_snippet.week).total_seconds()
             weeks_since_snippet = int(
                 seconds_since_snippet /
@@ -668,7 +669,7 @@ def admin_manage_users_handler():
         'message': flask.request.args.get('msg'),
         'username': _current_user_email(),
         'is_admin': users.is_current_user_admin(),
-        'view_week': util.existingsnippet_monday(datetime.datetime.now()),
+        'view_week': util.existingsnippet_monday(now),
         'user_data': user_data,
         'sort_by': sort_by,
     }
