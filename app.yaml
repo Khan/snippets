@@ -1,7 +1,15 @@
-runtime: python27
-threadsafe: yes
-api_version: 1
+runtime: python310
 default_expiration: "365d"
+app_engine_apis: true
+
+# Slack has a very short timeout on API callbacks, so we need to keep at least 1
+# process running for it
+automatic_scaling:
+  min_instances: 1
+
+# min_instances requires warmup requests to work
+inbound_services:
+  - warmup
 
 handlers:
 - url: /static
@@ -13,23 +21,13 @@ handlers:
   upload: static/favicon.ico
 
 - url: /admin/.*
-  script: snippets.application
+  script: auto
   login: admin
+  secure: always
 
-- url: .*
-  script: snippets.application
-
-skip_files:
-- .git
-- .DS_Store
-- .*.pyc
+- url: /.*
+  script: auto
+  secure: always
 
 builtins:
 - remote_api: on
-
-libraries:
-- name: jinja2
-  version: "2.6"
-# This also brings in webapp2_extras:
-- name: webapp2
-  version: "2.5.1"

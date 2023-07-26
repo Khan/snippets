@@ -2,7 +2,7 @@ cron:
 
 - description: snippets chat -- early reminder to write snippets
   url: /admin/send_friday_reminder_chat
-  schedule: every friday 16:00
+  schedule: every friday 13:00
   timezone: US/Pacific
 
 - description: snippets email -- reminder to write snippets

@@ -1,39 +1,45 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 
 import datetime
 import textwrap
 import unittest
+from zoneinfo import ZoneInfo
 
-# Update sys.path so it can find these.  We just need to add
-# 'google_appengine', but we add all of $PATH to be easy.  This
-# assumes the google_appengine directory is on the path.
-import os
-import sys
-sys.path.extend(os.environ['PATH'].split(':'))
-import dev_appserver
-dev_appserver.fix_sys_path()
-from google.appengine.ext import db
 from google.appengine.ext import testbed
+import time_machine
 
 import models
 import slacklib
 
-
+# The fictional date for these tests is Wednesday, July 29, 2015
+@time_machine.travel(datetime.datetime(2015, 7, 29, tzinfo=ZoneInfo("UTC")))
 class SlashCommandTest(unittest.TestCase):
 
-    def _mock_data(self):
-        # The fictional day for these tests Wednesday, July 29, 2015
-        slacklib._TODAY_FN = lambda: datetime.datetime(2015, 7, 29)
+    def setUp(self):
+        self.testbed = testbed.Testbed()
+        self.testbed.activate()
+        self.testbed.init_user_stub()
+
+        self.testbed.setup_env(
+            user_email="bob@example.com",
+            user_id="bob@example.com",
+            user_is_admin='0',
+            overwrite=True
+        )
+        appsettings = models.AppSettings.get(
+            create_if_missing=True,
+            domains=["khanacademy.org"],
+        )
+        appsettings.put()
 
         # Stuart created his account, but has never once filled out a snippet
-        db.put(models.User(email='stuart@khanacademy.org'))
+        models.User(email='stuart@khanacademy.org').put()
 
         # Fleetwood has two recent snippets, and always uses markdown lists,
         # but sometimes uses different list indicators or indention.
-        db.put(models.User(email='fleetwood@khanacademy.org'))
-        db.put(models.Snippet(
+        models.User(email='fleetwood@khanacademy.org').put()
+        models.Snippet(
             email='fleetwood@khanacademy.org',
             week=datetime.date(2015, 7, 27),
             text=textwrap.dedent("""
@@ -41,21 +47,21 @@ class SlashCommandTest(unittest.TestCase):
             *  sniffed some things
             *  hoping to sniff more things! #yolo
             """)
-        ))
-        db.put(models.Snippet(
+        ).put()
+        models.Snippet(
             email='fleetwood@khanacademy.org',
             week=datetime.date(2015, 7, 20),
             text=textwrap.dedent("""
             - lots of walks this week
             - not enough sniffing, hope to remedy next week!
             """)
-        ))
+        ).put()
 
         # Toby has filled out two snippets, but missed a week in-between while
         # on vacation. When he got back from vacation he was still jetlagged so
         # he wrote a longform paragraph instead of a list.
-        db.put(models.User(email='toby@khanacademy.org'))
-        db.put(models.Snippet(
+        models.User(email='toby@khanacademy.org').put()
+        models.Snippet(
             email='toby@khanacademy.org',
             week=datetime.date(2015, 7, 13),
             text=textwrap.dedent("""
@@ -63,8 +69,8 @@ class SlashCommandTest(unittest.TestCase):
 
 
             """)
-        ))
-        db.put(models.Snippet(
+        ).put()
+        models.Snippet(
             email='toby@khanacademy.org',
             week=datetime.date(2015, 7, 27),
             text=textwrap.dedent("""
@@ -76,36 +82,29 @@ class SlashCommandTest(unittest.TestCase):
 
             LUNCHTIME SUCKERS!
             """)
-        ))
+        ).put()
 
         # Fozzie tried hard to create an entry manually in the previous week,
         # but didn't understand markdown list syntax and got discouraged (so
         # has no entry this week, and a malformed one last week).
-        db.put(models.User(email='fozzie@khanacademy.org'))
-        db.put(models.Snippet(
+        models.User(email='fozzie@khanacademy.org').put()
+        models.Snippet(
             email='fozzie@khanacademy.org',
             week=datetime.date(2015, 7, 20),
             text=textwrap.dedent("""
             -is this how I list?
             -why is it not formatting??!?
             """)
-        ))
-
-    def _most_recent_snippet(self, user_email):
-        snippets_q = models.Snippet.all()
-        snippets_q.filter('email = ', user_email)
-        snippets_q.order('-week')        # newest snippet first
-        return snippets_q.fetch(1)[0]
-
-    def setUp(self):
-        self.testbed = testbed.Testbed()
-        self.testbed.activate()
-        self.testbed.init_datastore_v3_stub()
-        self.testbed.init_memcache_stub()
-        self._mock_data()
+        ).put()
 
     def tearDown(self):
         self.testbed.deactivate()
+
+    def _most_recent_snippet(self, user_email):
+        snippets_q = models.Snippet.query(
+            models.Snippet.email == user_email
+        ).order('-week')  # newest snippet first
+        return snippets_q.fetch(1)[0]
 
     def testDumpCommand_empty(self):
         # user without a recent snippet should just see null text
@@ -120,8 +119,8 @@ class SlashCommandTest(unittest.TestCase):
     def testDumpCommand_noAccount(self):
         # user without an account should get a helpful error message
         response = slacklib.command_dump('bob@bob.com')
-        self.assertIn("You don't appear to have a snippets account", response)
-        self.assertIn("Slack email address: bob@bob.com", response)
+        self.assertIn("You don't seem to be logged in!", response)
+        self.assertIn("bob@bob.com", response)
 
     def testListCommand_empty(self):
         # user without a recent snippet should get a helpful message
@@ -142,7 +141,7 @@ class SlashCommandTest(unittest.TestCase):
     def testListCommand_noAccount(self):
         # user without an account should get a helpful error message
         response = slacklib.command_list('bob@bob.com')
-        self.assertIn("You don't appear to have a snippets account", response)
+        self.assertIn("You don't seem to be logged in!", response)
 
     def testLastCommand_empty(self):
         # user without a snippet last week should get a helpful message
@@ -160,7 +159,7 @@ class SlashCommandTest(unittest.TestCase):
     def testLastCommand_noAccount(self):
         # user without an account should get a helpful error message
         response = slacklib.command_last('bob@bob.com')
-        self.assertIn("You don't appear to have a snippets account", response)
+        self.assertIn("You don't seem to be logged in!", response)
 
     def testBadMarkdown_listCommand(self):
         toby_recent = slacklib.command_list('toby@khanacademy.org')
@@ -175,8 +174,8 @@ class SlashCommandTest(unittest.TestCase):
         r = slacklib.command_add('stuart@khanacademy.org', 'went to the park')
         t = self._most_recent_snippet('stuart@khanacademy.org')
         self.assertIn("Added *went to the park* to your weekly snippets", r)
-        self.assertEquals('- went to the park', t.text)
-        self.assertEquals(True, t.is_markdown)
+        self.assertEqual('- went to the park', t.text)
+        self.assertEqual(True, t.is_markdown)
 
     def testAddCommand_existing(self):
         # on this one, the user markdown formatting gets altered/standardized
@@ -189,7 +188,7 @@ class SlashCommandTest(unittest.TestCase):
             - went to the park
         """).strip()
         self.assertEqual(expected, t.text)
-        self.assertEquals(True, t.is_markdown)
+        self.assertEqual(True, t.is_markdown)
 
     def testAddCommand_existingIsMalformed(self):
         # we should be told we cannot to add to a snippet that is malformed!
@@ -200,7 +199,7 @@ class SlashCommandTest(unittest.TestCase):
         t = self._most_recent_snippet(toby_email)
         self.assertNotIn("went to the park", t.text)
         self.assertIn("LUNCHTIME SUCKERS!", t.text)
-        self.assertEquals(False, t.is_markdown)
+        self.assertEqual(False, t.is_markdown)
 
     def testAddCommand_noArgs(self):
         # we need to handle when they try to add nothing!
@@ -210,7 +209,7 @@ class SlashCommandTest(unittest.TestCase):
     def testAddCommand_noAccount(self):
         # dont crash horribly if user doesnt exist
         r = slacklib.command_add('bob@bob.com', 'how is account formed?')
-        self.assertIn("You don't appear to have a snippets account", r)
+        self.assertIn("You don't seem to be logged in!", r)
 
     def testAddCommand_markupUsernames(self):
         # usernames should be marked up properly so they get syntax highlighted
@@ -220,7 +219,7 @@ class SlashCommandTest(unittest.TestCase):
         self.assertIn("- ate w/ <@toby>, yay", t.text)
 
     def testAddCommand_unicode(self):
-        r = slacklib.command_add('stuart@khanacademy.org', u'i “like” food')
+        r = slacklib.command_add('stuart@khanacademy.org', 'i “like” food')
         t = self._most_recent_snippet('stuart@khanacademy.org')
         self.assertIn('i “like” food', r)
         self.assertIn('i “like” food', t.text)
@@ -233,7 +232,7 @@ class SlashCommandTest(unittest.TestCase):
     def testDelCommand_noAccount(self):
         # dont crash horribly if user doesnt exist
         r = slacklib.command_del('bob@bob.com', ['1'])
-        self.assertIn("You don't appear to have a snippets account", r)
+        self.assertIn("You don't seem to be logged in!", r)
 
     def testDelCommand_normalCase(self):
         r = slacklib.command_del('fleetwood@khanacademy.org', ['1'])
@@ -245,7 +244,7 @@ class SlashCommandTest(unittest.TestCase):
             - hoping to sniff more things! #yolo
         """).strip()
         self.assertEqual(expected, t.text)
-        self.assertEquals(True, t.is_markdown)
+        self.assertEqual(True, t.is_markdown)
 
     def testDelCommand_nonexistentIndex(self):
         r1 = slacklib.command_del('stuart@khanacademy.org', ['0'])
@@ -265,7 +264,4 @@ class SlashCommandTest(unittest.TestCase):
         # ...and the existing snippets should not have been touched
         t = self._most_recent_snippet('toby@khanacademy.org')
         self.assertIn("I had fun", t.text)
-        self.assertEquals(False, t.is_markdown)
-
-if __name__ == '__main__':
-    unittest.main()
+        self.assertEqual(False, t.is_markdown)

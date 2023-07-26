@@ -2,7 +2,7 @@ import datetime
 import hashlib
 import os
 
-from google.appengine.ext import db
+from google.cloud import ndb
 from google.appengine.api import users
 
 
@@ -21,54 +21,55 @@ NULL_CATEGORY = '(unknown)'
 # support that later.
 
 
-class User(db.Model):
+class User(ndb.Model):
     """User preferences."""
-    created = db.DateTimeProperty()
-    last_modified = db.DateTimeProperty(auto_now=True)
-    email = db.StringProperty(required=True)           # The key to this record
-    is_hidden = db.BooleanProperty(default=False)      # hide 'empty' snippets
-    category = db.StringProperty(default=NULL_CATEGORY)  # groups snippets
-    uses_markdown = db.BooleanProperty(default=True)  # interpret snippet text
-    private_snippets = db.BooleanProperty(default=False)  # private by default?
-    wants_email = db.BooleanProperty(default=True)     # get nag emails?
+    created = ndb.DateTimeProperty(auto_now_add=True)
+    last_modified = ndb.DateTimeProperty(auto_now=True)
+    email = ndb.StringProperty(required=True)              # The key to this record
+    is_hidden = ndb.BooleanProperty(default=False)         # hide 'empty' snippets
+    category = ndb.StringProperty(default=NULL_CATEGORY)   # groups snippets
+    uses_markdown = ndb.BooleanProperty(default=True)      # interpret snippet text
+    private_snippets = ndb.BooleanProperty(default=False)  # private by default?
+    wants_email = ndb.BooleanProperty(default=True)        # get nag emails?
     # TODO(csilvers): make a ListProperty instead.
-    wants_to_view = db.TextProperty(default='all')     # comma-separated list
-    display_name = db.TextProperty(default='')         #  display name of the user
+    wants_to_view = ndb.TextProperty(default='all')  # comma-separated list
+    display_name = ndb.TextProperty(default='')  # Display name of the user
+    slack_id = ndb.StringProperty(default='')  # Slack member ID (not nickname!)
 
 
-class Snippet(db.Model):
+class Snippet(ndb.Model):
     """Every snippet is identified by the monday of the week it goes with."""
-    created = db.DateTimeProperty()
-    last_modified = db.DateTimeProperty(auto_now=True)
-    display_name = db.StringProperty()        # display name of the user
-    email = db.StringProperty(required=True)  # week+email: key to this record
-    week = db.DateProperty(required=True)     # the monday of the week
-    text = db.TextProperty()
-    private = db.BooleanProperty(default=False)       # snippet is private?
-    is_markdown = db.BooleanProperty(default=False)   # text is markdown?
+    created = ndb.DateTimeProperty(auto_now_add=True)
+    last_modified = ndb.DateTimeProperty(auto_now=True)
+    display_name = ndb.StringProperty()        # display name of the user
+    email = ndb.StringProperty(required=True)  # week+email: key to this record
+    week = ndb.DateProperty(required=True)     # the monday of the week
+    text = ndb.TextProperty()
+    private = ndb.BooleanProperty(default=False)       # snippet is private?
+    is_markdown = ndb.BooleanProperty(default=False)   # text is markdown?
 
     @property
     def email_md5_hash(self):
         m = hashlib.md5()
-        m.update(self.email)
+        m.update(self.email.encode('utf-8'))
         return m.hexdigest()
 
 
-class AppSettings(db.Model):
+class AppSettings(ndb.Model):
     """Application-wide preferences."""
-    created = db.DateTimeProperty()
-    last_modified = db.DateTimeProperty(auto_now=True)
+    created = ndb.DateTimeProperty(auto_now_add=True)
+    last_modified = ndb.DateTimeProperty(auto_now=True)
     # Application settings
-    domains = db.StringListProperty(required=True)
-    hostname = db.StringProperty(required=True)           # used for emails
-    default_private = db.BooleanProperty(default=False)   # new-user default
-    default_markdown = db.BooleanProperty(default=True)   # new-user default
-    default_email = db.BooleanProperty(default=True)      # new-user default
+    domains = ndb.StringProperty(repeated=True)
+    hostname = ndb.StringProperty(required=True)           # used for emails
+    default_private = ndb.BooleanProperty(default=False)   # new-user default
+    default_markdown = ndb.BooleanProperty(default=True)   # new-user default
+    default_email = ndb.BooleanProperty(default=True)      # new-user default
     # Chat and email settings
-    email_from = db.StringProperty(default='')
-    slack_channel = db.StringProperty(default='')
-    slack_token = db.StringProperty(default='')
-    slack_slash_token = db.StringProperty(default='')
+    email_from = ndb.StringProperty(default='')
+    slack_channel = ndb.StringProperty(default='')
+    slack_token = ndb.StringProperty(default='')
+    slack_slash_token = ndb.StringProperty(default='')
 
     @staticmethod
     def get(create_if_missing=False, domains=None):
@@ -79,12 +80,12 @@ class AppSettings(db.Model):
         are initialized with the given value for 'domains'.  The new
         entity is *not* put to the datastore.
         """
-        retval = AppSettings.get_by_key_name('global_settings')
+        retval = AppSettings.get_by_id('global_settings')
         if retval:
             return retval
         elif create_if_missing:
             # We default to sending email, and having it look like it's
-            # comint from the current user.  We add a '+snippets' in there
+            # coming from the current user.  We add a '+snippets' in there
             # to allow for filtering
             email_address = users.get_current_user().email()
             email_address = email_address.replace('@', '+snippets@')
@@ -93,7 +94,7 @@ class AppSettings(db.Model):
             # you accessed the site on here.
             hostname = '%s://%s' % (os.environ.get('wsgi.url_scheme', 'http'),
                                     os.environ['HTTP_HOST'])
-            return AppSettings(key_name='global_settings',
+            return AppSettings(id='global_settings',
                                created=datetime.datetime.now(),
                                domains=domains,
                                hostname=hostname,
