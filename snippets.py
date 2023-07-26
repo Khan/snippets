@@ -355,11 +355,10 @@ def update_snippet(email: str,
 
 @app.route("/update_snippet", methods=["POST"])
 def update_snippet_handler_post():
-    """handle ajax updates via POST
+    """Handle ajax updates via POST.
 
-    in particular, return status via json rather than redirects and
-    hard exceptions. This isn't actually RESTy, it's just status
-    codes and json.
+    In particular, return status via json rather than redirects and hard
+    exceptions. This isn't actually RESTy, it's just status codes and json.
     """
 
     data = flask.request.form
@@ -399,7 +398,6 @@ def update_snippet_handler_post():
 
 @app.route("/update_snippet", methods=["GET"])
 def update_snippet_handler_get():
-
     data = flask.request.args
     week_string = data.get('week', '')
     text = data.get('snippet', '')
