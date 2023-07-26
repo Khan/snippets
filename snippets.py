@@ -38,6 +38,8 @@ app = flask.Flask(
     static_folder="static",
     template_folder="templates")
 
+app.register_blueprint(slacklib.app_blueprint)
+
 
 @app.template_filter("readable_date")
 def _readable_date_filter(value: datetime.date):
@@ -800,7 +802,3 @@ def warmup():
     See https://cloud.google.com/appengine/docs/standard/configuring-warmup-requests?tab=python
     """
     return "OK", 200, {}
-
-
-app.add_url_rule("/slack", view_func=slacklib.slash_command_handler,
-                 methods=["POST"])

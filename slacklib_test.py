@@ -12,7 +12,7 @@ import time_machine
 import models
 import slacklib
 
-# The fictional day for these tests Wednesday, July 29, 2015
+# The fictional date for these tests is Wednesday, July 29, 2015
 @time_machine.travel(datetime.datetime(2015, 7, 29, tzinfo=ZoneInfo("UTC")))
 class SlashCommandTest(unittest.TestCase):
 

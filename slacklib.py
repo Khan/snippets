@@ -36,6 +36,9 @@ import util
 _REQUIRE_SLASH_TOKEN = True
 
 
+app_blueprint = flask.Blueprint("slack", __name__, url_prefix="/slack")
+
+
 def _web_api(api_method, payload):
     """Send a payload to the Slack Web API, automatically inserting token.
 
@@ -332,6 +335,8 @@ def get_user_by_slack_id(slack_id: str) -> models.User:
     return models.User.query(models.User.slack_id == slack_id).get()
 
 
+# This route is actually /slack because app_blueprint sets url_prefix
+@app_blueprint.route("/", methods=["POST"])
 def slash_command_handler() -> str:
     """Process an incoming slash command from Slack.
 
